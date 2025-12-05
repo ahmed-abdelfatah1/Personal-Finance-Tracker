@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Transaction - Personal Finance Tracker</title>
+</head>
+<body>
+    <h1>Edit Transaction</h1>
+    
+    <a href="{{ url_for('transactions') }}">← Back to Transactions</a>
+    <hr>
+    
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div style="color: red">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+    
+    <form method="POST" action="{{ url_for('edit_transaction', transaction_id=transaction.id) }}">
+        <div>
+            <label>Date:</label>
+            <input type="date" name="date" value="{{ transaction.date }}" required>
+        </div>
+        
+        <div>
+            <label>Type:</label>
+            <select name="transaction_type" required>
+                <option value="Income" {% if transaction.transaction_type == 'Income' %}selected{% endif %}>Income (+)</option>
+                <option value="Expense" {% if transaction.transaction_type == 'Expense' %}selected{% endif %}>Expense (-)</option>
+            </select>
+        </div>
+        
+        <div>
+            <label>Amount:</label>
+            <input type="number" name="amount" step="0.01" min="0.01" value="{{ transaction.amount }}" required>
+        </div>
+        
+        <div>
+            <label>Account:</label>
+            <select name="account_id" required>
+                {% for account in accounts %}
+                <option value="{{ account.id }}" {% if account.id == transaction.account_id %}selected{% endif %}>
+                    {{ account.name }} ({{ account.current_balance }})
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div>
+            <label>Category:</label>
+            <select name="category_id" required>
+                {% for category in categories %}
+                <option value="{{ category.id }}" {% if category.id == transaction.category_id %}selected{% endif %}>
+                    {{ category.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div>
+            <label>Description:</label>
+            <input type="text" name="description" value="{{ transaction.description or '' }}">
+        </div>
+        
+        <button type="submit">Update Transaction</button>
+        <a href="{{ url_for('transactions') }}">Cancel</a>
+    </form>
+</body>
+</html>

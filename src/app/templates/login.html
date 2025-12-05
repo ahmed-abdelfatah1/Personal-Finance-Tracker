@@ -1,20 +1,24 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Register - Personal Finance Tracker</title>
+    <title>Login - Personal Finance Tracker</title>
 </head>
 <body>
-    <h1>Register</h1>
+    <h1>Login</h1>
     
+    <!-- Flash messages -->
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
             {% for category, message in messages %}
-                <div style="color: red">{{ message }}</div>
+                <div style="color: {% if category == 'error' %}red{% else %}green{% endif %}">
+                    {{ message }}
+                </div>
             {% endfor %}
         {% endif %}
     {% endwith %}
     
-    <form method="POST" action="{{ url_for('register') }}">
+    <!-- Login form -->
+    <form method="POST" action="{{ url_for('login') }}">
         <div>
             <label>Email:</label>
             <input type="email" name="email" required>
@@ -23,13 +27,9 @@
             <label>Password:</label>
             <input type="password" name="password" required>
         </div>
-        <div>
-            <label>Display Name (optional):</label>
-            <input type="text" name="display_name">
-        </div>
-        <button type="submit">Register</button>
+        <button type="submit">Login</button>
     </form>
     
-    <p>Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
+    <p>Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
 </body>
 </html>
