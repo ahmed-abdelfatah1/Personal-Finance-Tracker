@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Account - Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('account.accounts') }}" class="back-link">← Back to Accounts</a>
+
+<div class="card">
+    <div class="card-header">
+        <h2>{{ account.name }}</h2>
+    </div>
+    <div class="card-body">
+        <div class="grid grid-2 mb-3">
+            <div>
+                <span class="text-muted">Account Type</span>
+                <p>{{ account.account_type or 'General' }}</p>
+            </div>
+            <div>
+                <span class="text-muted">Currency</span>
+                <p>{{ account.currency }}</p>
+            </div>
+            <div>
+                <span class="text-muted">Initial Balance</span>
+                <p>{{ "%.2f"|format(account.initial_balance) }}</p>
+            </div>
+            <div>
+                <span class="text-muted">Current Balance</span>
+                <p class="stat-value" style="font-size: 1.25rem;">{{ "%.2f"|format(account.current_balance) }}</p>
+            </div>
+        </div>
+        
+        <div class="btn-group">
+            <a href="{{ url_for('account.edit_account', account_id=account.id) }}" class="btn btn-primary">Edit Account</a>
+            <a href="{{ url_for('transaction.transactions') }}?account={{ account.id }}" class="btn btn-outline">View Transactions</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

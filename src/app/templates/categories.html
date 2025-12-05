@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Categories - Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Categories</h1>
+    <a href="{{ url_for('category.add_category') }}" class="btn btn-primary">+ Add Category</a>
+</div>
+
+<div class="grid grid-2">
+    <div class="card">
+        <div class="card-header">
+            <h3>💰 Income Categories</h3>
+        </div>
+        <div class="card-body">
+            {% if income_categories %}
+                {% for category in income_categories %}
+                <div class="flex flex-between flex-center mb-2" style="padding: 0.75rem; background: var(--bg-primary); border-radius: var(--border-radius);">
+                    <div class="flex flex-center gap-1">
+                        <span class="category-dot" style="background-color: {{ category.color or '#10b981' }}"></span>
+                        <span>{{ category.name }}</span>
+                    </div>
+                    <form method="POST" action="{{ url_for('category.delete_category', category_id=category.id) }}" onsubmit="return confirm('Delete this category?');">
+                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                    </form>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted text-center">No income categories yet</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>💸 Expense Categories</h3>
+        </div>
+        <div class="card-body">
+            {% if expense_categories %}
+                {% for category in expense_categories %}
+                <div class="flex flex-between flex-center mb-2" style="padding: 0.75rem; background: var(--bg-primary); border-radius: var(--border-radius);">
+                    <div class="flex flex-center gap-1">
+                        <span class="category-dot" style="background-color: {{ category.color or '#ef4444' }}"></span>
+                        <span>{{ category.name }}</span>
+                        {% if category.max_single_amount %}
+                        <span class="badge badge-warning" style="margin-left: 0.5rem;">Max: {{ "%.2f"|format(category.max_single_amount) }}</span>
+                        {% endif %}
+                    </div>
+                    <form method="POST" action="{{ url_for('category.delete_category', category_id=category.id) }}" onsubmit="return confirm('Delete this category?');">
+                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                    </form>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p class="text-muted text-center">No expense categories yet</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if not income_categories and not expense_categories %}
+<div class="card mt-3">
+    <div class="card-body">
+        <div class="empty-state">
+            <div class="empty-state-icon">🏷️</div>
+            <h3>No categories yet</h3>
+            <p>Create categories to organize your income and expenses.</p>
+            <a href="{{ url_for('category.add_category') }}" class="btn btn-primary">Add Category</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+

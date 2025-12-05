@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Budgets - Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Budgets</h1>
+    <a href="{{ url_for('budget.set_budget') }}" class="btn btn-primary">+ Set Budget</a>
+</div>
+
+{% if budgets %}
+<div class="grid grid-2">
+    {% for budget in budgets %}
+    <div class="card">
+        <div class="card-header flex flex-between flex-center">
+            <h3>
+                <span class="category-dot" style="background-color: {{ budget.category.color or '#6b7280' }}"></span>
+                {{ budget.category.name }}
+            </h3>
+            <span class="badge badge-{% if budget.month == current_month and budget.year == current_year %}primary{% else %}secondary{% endif %}">
+                {{ '%02d'|format(budget.month) }}/{{ budget.year }}
+            </span>
+        </div>
+        <div class="card-body">
+            <div class="flex flex-between mb-2">
+                <span class="text-muted">Spent</span>
+                <span class="{% if budget.is_over_budget %}text-danger{% elif budget.is_over_threshold %}text-warning{% else %}text-success{% endif %}">
+                    {{ "%.2f"|format(budget.current_spent) }} / {{ "%.2f"|format(budget.limit_amount) }}
+                </span>
+            </div>
+            
+            <div class="budget-progress">
+                {% set percentage = budget.spent_percentage %}
+                {% set bar_class = 'danger' if budget.is_over_budget else ('warning' if budget.is_over_threshold else 'success') %}
+                <div class="progress">
+                    <div class="progress-bar {{ bar_class }}" style="width: {{ [percentage, 100]|min }}%"></div>
+                </div>
+                <div class="budget-info">
+                    <span>{{ "%.1f"|format(percentage) }}% used</span>
+                    <span>{{ "%.2f"|format(budget.limit_amount - budget.current_spent) }} remaining</span>
+                </div>
+            </div>
+
+            {% if budget.is_over_budget %}
+            <div class="alert alert-danger mt-2" style="padding: 0.5rem 0.75rem; font-size: 0.75rem;">
+                ⚠️ Over budget by {{ "%.2f"|format(budget.current_spent - budget.limit_amount) }}
+            </div>
+            {% elif budget.is_over_threshold %}
+            <div class="alert alert-warning mt-2" style="padding: 0.5rem 0.75rem; font-size: 0.75rem;">
+                ⚠️ Approaching budget limit ({{ budget.alert_threshold }}% threshold)
+            </div>
+            {% endif %}
+        </div>
+        <div class="card-footer">
+            <form method="POST" action="{{ url_for('budget.delete_budget', budget_id=budget.id) }}" onsubmit="return confirm('Delete this budget?');">
+                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state">
+            <div class="empty-state-icon">📊</div>
+            <h3>No budgets set</h3>
+            <p>Set budgets to track your spending limits by category.</p>
+            <a href="{{ url_for('budget.set_budget') }}" class="btn btn-primary">Set Budget</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+

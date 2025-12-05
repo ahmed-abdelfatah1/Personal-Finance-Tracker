@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Set Budget - Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('budget.budgets') }}" class="back-link">← Back to Budgets</a>
+
+<div class="card" style="max-width: 500px;">
+    <div class="card-header">
+        <h2>Set Budget</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('budget.set_budget') }}">
+            <div class="form-group">
+                <label class="form-label">Category</label>
+                <select name="category_id" class="form-control" required>
+                    <option value="">Select Expense Category</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}">{{ category.name }}</option>
+                    {% endfor %}
+                </select>
+                <span class="form-text">Only expense categories can have budgets</span>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label class="form-label">Month</label>
+                    <select name="month" class="form-control" required>
+                        {% for m in range(1, 13) %}
+                        <option value="{{ m }}" {% if m == current_month %}selected{% endif %}>
+                            {{ ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m-1] }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Year</label>
+                    <select name="year" class="form-control" required>
+                        {% for y in range(current_year - 1, current_year + 3) %}
+                        <option value="{{ y }}" {% if y == current_year %}selected{% endif %}>{{ y }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Budget Limit</label>
+                <input type="number" name="limit_amount" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+                <span class="form-text">Maximum amount you want to spend in this category</span>
+            </div>
+
+            <div class="btn-group mt-3">
+                <button type="submit" class="btn btn-primary">Set Budget</button>
+                <a href="{{ url_for('budget.budgets') }}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

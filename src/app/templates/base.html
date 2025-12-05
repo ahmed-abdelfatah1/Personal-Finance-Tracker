@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Personal Finance Tracker{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    {% if current_user.is_authenticated %}
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="{{ url_for('dashboard.dashboard') }}">💰 Finance Tracker</a>
+        </div>
+        <ul class="nav-links">
+            <li><a href="{{ url_for('dashboard.dashboard') }}" class="{% if request.endpoint == 'dashboard.dashboard' %}active{% endif %}">Dashboard</a></li>
+            <li><a href="{{ url_for('transaction.transactions') }}" class="{% if 'transaction' in request.endpoint %}active{% endif %}">Transactions</a></li>
+            <li><a href="{{ url_for('account.accounts') }}" class="{% if 'account' in request.endpoint %}active{% endif %}">Accounts</a></li>
+            <li><a href="{{ url_for('budget.budgets') }}" class="{% if 'budget' in request.endpoint %}active{% endif %}">Budgets</a></li>
+            <li><a href="{{ url_for('category.categories') }}" class="{% if 'category' in request.endpoint %}active{% endif %}">Categories</a></li>
+            <li><a href="{{ url_for('report.reports') }}" class="{% if 'report' in request.endpoint %}active{% endif %}">Reports</a></li>
+        </ul>
+        <div class="nav-user">
+            <span class="user-name">{{ current_user.display_name or current_user.email }}</span>
+            <a href="{{ url_for('auth.logout') }}" class="btn btn-outline btn-sm">Logout</a>
+        </div>
+    </nav>
+    {% endif %}
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                            <button class="alert-close" onclick="this.parentElement.remove()">×</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>&copy; 2025 Personal Finance Tracker</p>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>
+
