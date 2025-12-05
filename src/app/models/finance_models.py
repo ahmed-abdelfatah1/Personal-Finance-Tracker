@@ -8,7 +8,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from typing import Optional, List
-from app.extensions import db
+from ..extensions import db
 
 
 class User(db.Model):
