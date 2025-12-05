@@ -1,7 +1,4 @@
-"""
-Models Package
-Exports all database models for easy importing.
-"""
+"""Models Package - Database model exports."""
 
 from .finance_models import (
     User,
@@ -22,4 +19,3 @@ __all__ = [
     'TransactionTemplate',
     'Currency'
 ]
-
