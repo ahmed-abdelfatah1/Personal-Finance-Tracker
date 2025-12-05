@@ -38,11 +38,17 @@ def budgets():
 @login_required
 def set_budget():
     if request.method == 'GET':
+        now = datetime.now()
         categories = Category.query.filter_by(
             user_id=current_user.id,
             category_type='Expense'
         ).all()
-        return render_template('set_budget.html', categories=categories)
+        return render_template(
+            'set_budget.html',
+            categories=categories,
+            current_month=now.month,
+            current_year=now.year
+        )
 
     try:
         data = _extract_budget_data()

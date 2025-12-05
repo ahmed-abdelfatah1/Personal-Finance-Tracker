@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Account - Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('account.accounts') }}" class="back-link">← Back to Accounts</a>
+
+<div class="card" style="max-width: 500px;">
+    <div class="card-header">
+        <h2>Edit Account</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('account.edit_account', account_id=account.id) }}">
+            <div class="form-group">
+                <label class="form-label">Account Name</label>
+                <input type="text" name="name" class="form-control" value="{{ account.name }}" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Account Type</label>
+                <select name="account_type" class="form-control">
+                    <option value="">Select Type (optional)</option>
+                    <option value="Checking" {% if account.account_type == 'Checking' %}selected{% endif %}>Checking</option>
+                    <option value="Savings" {% if account.account_type == 'Savings' %}selected{% endif %}>Savings</option>
+                    <option value="Cash" {% if account.account_type == 'Cash' %}selected{% endif %}>Cash</option>
+                    <option value="Credit Card" {% if account.account_type == 'Credit Card' %}selected{% endif %}>Credit Card</option>
+                    <option value="Investment" {% if account.account_type == 'Investment' %}selected{% endif %}>Investment</option>
+                    <option value="Other" {% if account.account_type == 'Other' %}selected{% endif %}>Other</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Initial Balance</label>
+                <input type="number" name="initial_balance" class="form-control" step="0.01" value="{{ account.initial_balance }}">
+                <span class="form-text">Note: Can only be changed if account has no transactions</span>
+            </div>
+
+            <div class="btn-group mt-3">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a href="{{ url_for('account.accounts') }}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

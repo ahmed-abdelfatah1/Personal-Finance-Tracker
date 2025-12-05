@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions - Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Transactions</h1>
+    <a href="{{ url_for('transaction.add_transaction') }}" class="btn btn-primary">+ Add Transaction</a>
+</div>
+
+<form method="GET" class="filter-bar">
+    <div class="form-group">
+        <label class="form-label">Category</label>
+        <select name="category" class="form-control">
+            <option value="">All Categories</option>
+            {% for category in categories %}
+            <option value="{{ category.id }}" {% if request.args.get('category')|int == category.id %}selected{% endif %}>
+                {{ category.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="form-group">
+        <label class="form-label">Type</label>
+        <select name="type" class="form-control">
+            <option value="">All Types</option>
+            <option value="Income" {% if request.args.get('type') == 'Income' %}selected{% endif %}>Income</option>
+            <option value="Expense" {% if request.args.get('type') == 'Expense' %}selected{% endif %}>Expense</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label class="form-label">From Date</label>
+        <input type="date" name="start_date" class="form-control" value="{{ request.args.get('start_date', '') }}">
+    </div>
+    <div class="form-group">
+        <label class="form-label">To Date</label>
+        <input type="date" name="end_date" class="form-control" value="{{ request.args.get('end_date', '') }}">
+    </div>
+    <div class="form-group" style="align-self: flex-end;">
+        <button type="submit" class="btn btn-secondary">Filter</button>
+        <a href="{{ url_for('transaction.transactions') }}" class="btn btn-outline">Clear</a>
+    </div>
+</form>
+
+{% if transactions %}
+<div class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Account</th>
+                <th>Type</th>
+                <th class="text-right">Amount</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for transaction in transactions %}
+            <tr>
+                <td>{{ transaction.date.strftime('%b %d, %Y') }}</td>
+                <td>{{ transaction.description or '-' }}</td>
+                <td>
+                    <span class="category-dot" style="background-color: {{ transaction.category.color or '#6b7280' }}"></span>
+                    {{ transaction.category.name }}
+                </td>
+                <td>{{ transaction.account.name }}</td>
+                <td>
+                    <span class="badge badge-{{ 'income' if transaction.transaction_type == 'Income' else 'expense' }}">
+                        {{ transaction.transaction_type }}
+                    </span>
+                </td>
+                <td class="text-right">
+                    <span class="amount {% if transaction.transaction_type == 'Income' %}amount-income{% else %}amount-expense{% endif %}">
+                        {{ "%.2f"|format(transaction.amount) }}
+                    </span>
+                </td>
+                <td>
+                    <div class="table-actions">
+                        <a href="{{ url_for('transaction.edit_transaction', transaction_id=transaction.id) }}" class="btn btn-sm btn-outline">Edit</a>
+                        <form method="POST" action="{{ url_for('transaction.delete_transaction', transaction_id=transaction.id) }}" style="display:inline;" onsubmit="return confirm('Delete this transaction?');">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state">
+            <div class="empty-state-icon">📝</div>
+            <h3>No transactions found</h3>
+            <p>{% if request.args %}Try adjusting your filters or {% endif %}add your first transaction to get started.</p>
+            <a href="{{ url_for('transaction.add_transaction') }}" class="btn btn-primary">Add Transaction</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+

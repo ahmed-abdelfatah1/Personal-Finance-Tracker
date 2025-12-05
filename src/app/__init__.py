@@ -3,7 +3,7 @@
 from flask import Flask
 
 from .config import Config
-from .extensions import db, bcrypt, login_manager
+from .extensions import db as database, bcrypt, login_manager
 
 
 def create_app(config_class: type = Config) -> Flask:
@@ -17,7 +17,7 @@ def create_app(config_class: type = Config) -> Flask:
 
 
 def _init_extensions(app: Flask) -> None:
-    db.init_app(app)
+    database.init_app(app)
     bcrypt.init_app(app)
     login_manager.init_app(app)
 
@@ -35,6 +35,7 @@ def _register_blueprints(app: Flask) -> None:
         account_bp,
         budget_bp,
         category_bp,
+        report_bp,
     )
 
     app.register_blueprint(auth_bp)
@@ -43,4 +44,5 @@ def _register_blueprints(app: Flask) -> None:
     app.register_blueprint(account_bp)
     app.register_blueprint(budget_bp)
     app.register_blueprint(category_bp)
+    app.register_blueprint(report_bp)
 

@@ -1,63 +1,59 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Transactions - Personal Finance Tracker</title>
-</head>
-<body>
-    <h1>Transactions</h1>
-    
-    <!-- Navigation -->
-    <a href="{{ url_for('dashboard') }}">Dashboard</a> |
-    <a href="{{ url_for('add_transaction') }}">+ Add Transaction</a> |
-    <a href="{{ url_for('logout') }}">Logout</a>
-    
-    <hr>
-    
-    <!-- Flash messages -->
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-                <div style="color: {% if category == 'error' %}red{% else %}green{% endif %}">
-                    {{ message }}
-                </div>
-            {% endfor %}
+{% extends "base.html" %}
+
+{% block title %}Transaction Details - Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('transaction.transactions') }}" class="back-link">← Back to Transactions</a>
+
+<div class="card" style="max-width: 600px;">
+    <div class="card-header flex flex-between flex-center">
+        <h2>Transaction Details</h2>
+        <span class="badge badge-{{ 'income' if transaction.transaction_type == 'Income' else 'expense' }}">
+            {{ transaction.transaction_type }}
+        </span>
+    </div>
+    <div class="card-body">
+        <div class="text-center mb-3">
+            <div class="amount {% if transaction.transaction_type == 'Income' %}amount-income{% else %}amount-expense{% endif %}" style="font-size: 2rem;">
+                {{ "%.2f"|format(transaction.amount) }}
+            </div>
+        </div>
+
+        <div class="grid grid-2">
+            <div class="mb-2">
+                <span class="text-muted">Date</span>
+                <p>{{ transaction.date.strftime('%B %d, %Y') }}</p>
+            </div>
+            <div class="mb-2">
+                <span class="text-muted">Account</span>
+                <p>{{ transaction.account.name }}</p>
+            </div>
+            <div class="mb-2">
+                <span class="text-muted">Category</span>
+                <p>
+                    <span class="category-dot" style="background-color: {{ transaction.category.color or '#6b7280' }}"></span>
+                    {{ transaction.category.name }}
+                </p>
+            </div>
+            <div class="mb-2">
+                <span class="text-muted">Description</span>
+                <p>{{ transaction.description or '-' }}</p>
+            </div>
+        </div>
+
+        {% if transaction.notes %}
+        <div class="mt-2">
+            <span class="text-muted">Notes</span>
+            <p>{{ transaction.notes }}</p>
+        </div>
         {% endif %}
-    {% endwith %}
-    
-    <!-- Transactions Table -->
-    <h2>All Transactions</h2>
-    {% if transactions %}
-        <table border="1">
-            <tr>
-                <th>Date</th>
-                <th>Description</th>
-                <th>Category</th>
-                <th>Amount</th>
-                <th>Type</th>
-                <th>Actions</th>
-            </tr>
-            {% for t in transactions %}
-            <tr>
-                <td>{{ t.date }}</td>
-                <td>{{ t.description or '-' }}</td>
-                <td>{{ t.category.name if t.category else 'Uncategorized' }}</td>
-                <td style="color: {% if t.transaction_type == 'Income' %}green{% else %}red{% endif %}">
-                    {{ t.amount }}
-                </td>
-                <td>{{ t.transaction_type }}</td>
-                <td>
-                    <a href="{{ url_for('edit_transaction', transaction_id=t.id) }}">Edit</a>
-                    <form method="POST" action="{{ url_for('delete_transaction', transaction_id=t.id) }}" 
-                          style="display:inline;" 
-                          onsubmit="return confirm('Delete this transaction?');">
-                        <button type="submit">Delete</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </table>
-    {% else %}
-        <p>No transactions found. <a href="{{ url_for('add_transaction') }}">Add your first transaction</a></p>
-    {% endif %}
-</body>
-</html>
+
+        <div class="btn-group mt-3">
+            <a href="{{ url_for('transaction.edit_transaction', transaction_id=transaction.id) }}" class="btn btn-primary">Edit</a>
+            <form method="POST" action="{{ url_for('transaction.delete_transaction', transaction_id=transaction.id) }}" style="display:inline;" onsubmit="return confirm('Delete this transaction?');">
+                <button type="submit" class="btn btn-danger">Delete</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

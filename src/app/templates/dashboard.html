@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Dashboard</h1>
+    <span class="text-muted">Welcome back, {{ user.display_name or user.email }}!</span>
+</div>
+
+<div class="dashboard-stats">
+    <div class="stat-card balance">
+        <div class="stat-label">Total Balance</div>
+        <div class="stat-value">{{ "%.2f"|format(total_balance) }} {{ user.default_currency }}</div>
+    </div>
+    <div class="stat-card income">
+        <div class="stat-label">This Month Income</div>
+        <div class="stat-value">+{{ "%.2f"|format(monthly_summary.income) }}</div>
+    </div>
+    <div class="stat-card expense">
+        <div class="stat-label">This Month Expenses</div>
+        <div class="stat-value">-{{ "%.2f"|format(monthly_summary.expenses) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Net This Month</div>
+        <div class="stat-value {% if monthly_summary.net >= 0 %}text-success{% else %}text-danger{% endif %}">
+            {{ "%.2f"|format(monthly_summary.net) }}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-2">
+    <div class="card">
+        <div class="card-header">
+            <h3>Recent Transactions</h3>
+        </div>
+        <div class="card-body">
+            {% if recent_transactions %}
+                {% for transaction in recent_transactions %}
+                <div class="flex flex-between flex-center mb-2" style="padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+                    <div>
+                        <div style="font-weight: 500;">{{ transaction.description or 'No description' }}</div>
+                        <div class="text-muted" style="font-size: 0.75rem;">
+                            {{ transaction.date.strftime('%b %d, %Y') }} · {{ transaction.category.name }}
+                        </div>
+                    </div>
+                    <div class="amount {% if transaction.transaction_type == 'Income' %}amount-income{% else %}amount-expense{% endif %}">
+                        {{ "%.2f"|format(transaction.amount) }}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">📝</div>
+                    <h3>No transactions yet</h3>
+                    <p>Start by adding your first transaction</p>
+                    <a href="{{ url_for('transaction.add_transaction') }}" class="btn btn-primary">Add Transaction</a>
+                </div>
+            {% endif %}
+        </div>
+        {% if recent_transactions %}
+        <div class="card-footer text-center">
+            <a href="{{ url_for('transaction.transactions') }}">View All Transactions →</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h3>Quick Actions</h3>
+        </div>
+        <div class="card-body">
+            <div class="grid grid-2 gap-2">
+                <a href="{{ url_for('transaction.add_transaction') }}" class="btn btn-primary btn-block">+ Add Transaction</a>
+                <a href="{{ url_for('account.add_account') }}" class="btn btn-outline btn-block">+ Add Account</a>
+                <a href="{{ url_for('budget.set_budget') }}" class="btn btn-outline btn-block">+ Set Budget</a>
+                <a href="{{ url_for('category.add_category') }}" class="btn btn-outline btn-block">+ Add Category</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

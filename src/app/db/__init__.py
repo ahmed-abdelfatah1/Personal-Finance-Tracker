@@ -2,7 +2,7 @@
 Database Package - Centralized database management and utilities.
 """
 
-from app.db.connection import (
+from .connection import (
     get_db,
     get_engine,
     get_session,

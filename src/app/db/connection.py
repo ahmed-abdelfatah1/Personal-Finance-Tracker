@@ -6,7 +6,7 @@ from typing import Optional
 from flask import Flask
 from sqlalchemy import text
 
-from app.extensions import db
+from ..extensions import db
 
 
 # Singleton DB Access
@@ -30,7 +30,7 @@ def get_session():
 
 def init_db(app: Optional[Flask] = None):
     """Initialize the database schema - creates all tables."""
-    from app.models import finance_models  # noqa: F401
+    from ..models import finance_models  # noqa: F401
     
     if app is not None:
         with app.app_context():

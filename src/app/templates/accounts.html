@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Accounts - Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Accounts</h1>
+    <a href="{{ url_for('account.add_account') }}" class="btn btn-primary">+ Add Account</a>
+</div>
+
+<div class="stat-card balance mb-4" style="max-width: 300px;">
+    <div class="stat-label">Total Balance</div>
+    <div class="stat-value">{{ "%.2f"|format(total_balance) }}</div>
+</div>
+
+{% if accounts %}
+    {% for account in accounts %}
+    <div class="account-card">
+        <div class="account-info">
+            <h3>{{ account.name }}</h3>
+            <span class="account-type">{{ account.account_type or 'General' }}</span>
+        </div>
+        <div class="account-balance">
+            <div class="balance-amount">{{ "%.2f"|format(account.current_balance) }}</div>
+            <div class="currency">{{ account.currency }}</div>
+        </div>
+        <div class="btn-group">
+            <a href="{{ url_for('account.edit_account', account_id=account.id) }}" class="btn btn-sm btn-outline">Edit</a>
+            <form method="POST" action="{{ url_for('account.delete_account', account_id=account.id) }}" style="display:inline;" onsubmit="return confirm('Delete this account?');">
+                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state">
+            <div class="empty-state-icon">🏦</div>
+            <h3>No accounts yet</h3>
+            <p>Add your first account to start tracking your finances.</p>
+            <a href="{{ url_for('account.add_account') }}" class="btn btn-primary">Add Account</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
