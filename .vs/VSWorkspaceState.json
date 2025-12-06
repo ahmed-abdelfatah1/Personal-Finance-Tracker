@@ -1,0 +1,10 @@
+{
+  "ExpandedNodes": [
+    "\\src",
+    "\\tests\\manual",
+    "\\tests\\unit",
+    "\\venv",
+    "\\__pycache__"
+  ],
+  "PreviewInSolutionExplorer": false
+}

@@ -1,21 +1,252 @@
 {% extends "base.html" %}
 
-{% block title %}Reports - Personal Finance Tracker{% endblock %}
+{% block title %}Financial Reports - Personal Finance Tracker{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Reports</h1>
+    <h1>📊 Financial Reports</h1>
 </div>
 
+<!-- Report Generation Form -->
 <div class="card">
+    <div class="card-header">
+        <h2>Generate Report</h2>
+    </div>
     <div class="card-body">
-        <div class="empty-state">
-            <div class="empty-state-icon">📈</div>
-            <h3>Reports Coming Soon</h3>
-            <p>Financial reporting features are under development.</p>
-            <p class="text-muted">Soon you'll be able to generate monthly and annual reports, view charts, and export data.</p>
+        <form method="POST" action="{{ url_for('report.reports') }}">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="start_date">Start Date</label>
+                    <input type="date" id="start_date" name="start_date" class="form-control" 
+                           value="{{ start_date.strftime('%Y-%m-%d') if start_date else '' }}" required>
+                </div>
+                <div class="form-group">
+                    <label for="end_date">End Date</label>
+                    <input type="date" id="end_date" name="end_date" class="form-control" 
+                           value="{{ end_date.strftime('%Y-%m-%d') if end_date else '' }}" required>
+                </div>
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="transaction_type">Transaction Type</label>
+                    <select id="transaction_type" name="transaction_type" class="form-control">
+                        <option value="All">All</option>
+                        <option value="Income">Income Only</option>
+                        <option value="Expense">Expense Only</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="accounts">Accounts (Optional)</label>
+                    <select id="accounts" name="accounts" class="form-control" multiple>
+                        {% for account in accounts %}
+                        <option value="{{ account.id }}">{{ account.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="form-text">Hold Ctrl/Cmd to select multiple</small>
+                </div>
+            </div>
+            
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">Generate Report</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if report_data %}
+<!-- Report Summary -->
+<div class="card">
+    <div class="card-header">
+        <h2>Report Summary</h2>
+        <span class="text-muted">{{ report_data.start_date.strftime('%B %d, %Y') }} - {{ report_data.end_date.strftime('%B %d, %Y') }}</span>
+    </div>
+    <div class="card-body">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Total Income</div>
+                <div class="stat-value income">{{ report_data.total_income }} EGP</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Expenses</div>
+                <div class="stat-value expense">{{ report_data.total_expenses }} EGP</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Net Savings</div>
+                <div class="stat-value {% if report_data.net_savings >= 0 %}income{% else %}expense{% endif %}">
+                    {{ report_data.net_savings }} EGP
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Transactions</div>
+                <div class="stat-value">{{ report_data.transaction_count }}</div>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Category Breakdown -->
+<div class="card-grid">
+    {% if report_data.income_by_category %}
+    <div class="card">
+        <div class="card-header">
+            <h3>Income by Category</h3>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Amount</th>
+                        <th>Percentage</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for category in report_data.income_by_category %}
+                    <tr>
+                        <td>{{ category.category_name }}</td>
+                        <td class="income">{{ category.amount }} EGP</td>
+                        <td>{{ "%.1f"|format(category.percentage) }}%</td>
+                        <td>{{ category.transaction_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if report_data.expenses_by_category %}
+    <div class="card">
+        <div class="card-header">
+            <h3>Expenses by Category</h3>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Amount</th>
+                        <th>Percentage</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for category in report_data.expenses_by_category %}
+                    <tr>
+                        <td>{{ category.category_name }}</td>
+                        <td class="expense">{{ category.amount }} EGP</td>
+                        <td>{{ "%.1f"|format(category.percentage) }}%</td>
+                        <td>{{ category.transaction_count }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Account Summary -->
+{% if report_data.account_summaries %}
+<div class="card">
+    <div class="card-header">
+        <h3>Account Balances</h3>
+    </div>
+    <div class="card-body">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Account</th>
+                    <th>Current Balance</th>
+                    <th>Currency</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for account in report_data.account_summaries %}
+                <tr>
+                    <td>{{ account.account_name }}</td>
+                    <td>{{ account.current_balance }}</td>
+                    <td>{{ account.currency }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="table-total">
+                    <td><strong>Total Balance</strong></td>
+                    <td><strong>{{ report_data.account_summaries|sum(attribute='current_balance') }}</strong></td>
+                    <td></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Monthly Comparison -->
+{% if monthly_data %}
+<div class="card">
+    <div class="card-header">
+        <h3>Monthly Comparison</h3>
+    </div>
+    <div class="card-body">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Month</th>
+                    <th>Income</th>
+                    <th>Expenses</th>
+                    <th>Net Savings</th>
+                    <th>Change</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for month in monthly_data %}
+                <tr>
+                    <td>{{ month.month }}/{{ month.year }}</td>
+                    <td class="income">{{ month.total_income }} EGP</td>
+                    <td class="expense">{{ month.total_expenses }} EGP</td>
+                    <td class="{% if month.net_savings >= 0 %}income{% else %}expense{% endif %}">
+                        {{ month.net_savings }} EGP
+                    </td>
+                    <td>
+                        {% if month.month_over_month_change is not none %}
+                            <span class="{% if month.month_over_month_change >= 0 %}income{% else %}expense{% endif %}">
+                                {{ "%.1f"|format(month.month_over_month_change) }}%
+                            </span>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Export Button -->
+<div class="card">
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('report.export_csv') }}">
+            <input type="hidden" name="start_date" value="{{ report_data.start_date.strftime('%Y-%m-%d') }}">
+            <input type="hidden" name="end_date" value="{{ report_data.end_date.strftime('%Y-%m-%d') }}">
+            <button type="submit" class="btn btn-success">📥 Export to CSV</button>
+        </form>
+    </div>
+</div>
+
+{% elif request.method == 'POST' %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <h3>No Data Found</h3>
+            <p>No transactions found for the selected date range and filters.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
 
