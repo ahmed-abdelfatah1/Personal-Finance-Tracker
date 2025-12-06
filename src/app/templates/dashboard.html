@@ -29,6 +29,35 @@
     </div>
 </div>
 
+{% if budget_alerts %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h3>⚠️ Budget Alerts</h3>
+    </div>
+    <div class="card-body">
+        <div class="budget-alerts">
+            {% for alert in budget_alerts %}
+            <div class="alert alert-{{ alert.severity }}" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                <div class="flex flex-center gap-1">
+                    <span class="category-dot" style="background-color: {{ alert.color }}"></span>
+                    <strong>{{ alert.category }}</strong>
+                    <span>— {{ alert.message }}</span>
+                </div>
+                <div>
+                    <span class="badge badge-{{ alert.severity }}">
+                        {{ "%.2f"|format(alert.spent) }} / {{ "%.2f"|format(alert.limit) }}
+                    </span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="text-center mt-2">
+            <a href="{{ url_for('budget.budgets') }}" class="btn btn-outline btn-sm">View All Budgets →</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="grid grid-2">
     <div class="card">
         <div class="card-header">

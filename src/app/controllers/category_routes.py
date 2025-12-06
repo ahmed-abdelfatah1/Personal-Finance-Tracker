@@ -1,5 +1,8 @@
 """Category routes - CRUD operations for transaction categories."""
 
+from decimal import Decimal
+from typing import Optional
+
 from flask import Blueprint, render_template, request, redirect, flash, url_for
 from flask_login import login_required, current_user
 
@@ -27,6 +30,7 @@ def categories():
 @category_bp.route('/add_category', methods=['GET', 'POST'])
 @login_required
 def add_category():
+    """Create a new category."""
     if request.method == 'GET':
         return render_template('add_category.html')
 
@@ -34,6 +38,7 @@ def add_category():
         name = request.form.get('name')
         category_type = request.form.get('category_type')
         color = request.form.get('color', '#3498db')
+        max_single_amount = _parse_max_single_amount()
 
         if not name or not category_type:
             flash('Name and type are required', 'error')
@@ -43,13 +48,7 @@ def add_category():
             flash('Invalid category type', 'error')
             return redirect(url_for('category.add_category'))
 
-        existing = Category.query.filter_by(
-            user_id=current_user.id,
-            name=name,
-            category_type=category_type
-        ).first()
-
-        if existing:
+        if _is_duplicate_category(name, category_type):
             flash(f'Category "{name}" ({category_type}) already exists', 'error')
             return redirect(url_for('category.add_category'))
 
@@ -57,7 +56,8 @@ def add_category():
             user_id=current_user.id,
             name=name,
             category_type=category_type,
-            color=color
+            color=color,
+            max_single_amount=max_single_amount
         )
 
         db.session.add(new_category)
@@ -69,6 +69,81 @@ def add_category():
     except Exception as e:
         flash(f'Error creating category: {str(e)}', 'error')
         return redirect(url_for('category.add_category'))
+
+
+@category_bp.route('/edit_category/<int:category_id>', methods=['GET', 'POST'])
+@login_required
+def edit_category(category_id: int):
+    """Edit an existing category."""
+    category = Category.query.filter_by(
+        id=category_id,
+        user_id=current_user.id
+    ).first()
+
+    if not category:
+        flash('Category not found', 'error')
+        return redirect(url_for('category.categories'))
+
+    if request.method == 'GET':
+        return render_template('edit_category.html', category=category)
+
+    return _update_category(category)
+
+
+def _update_category(category: Category):
+    """Process category update form submission."""
+    try:
+        name = request.form.get('name')
+        color = request.form.get('color', category.color)
+        max_single_amount = _parse_max_single_amount()
+
+        if not name:
+            flash('Category name is required', 'error')
+            return redirect(url_for('category.edit_category', category_id=category.id))
+
+        if _is_duplicate_category(name, category.category_type, exclude_id=category.id):
+            flash(f'Category "{name}" ({category.category_type}) already exists', 'error')
+            return redirect(url_for('category.edit_category', category_id=category.id))
+
+        category.name = name
+        category.color = color
+        category.max_single_amount = max_single_amount
+
+        db.session.commit()
+        flash(f'Category "{name}" updated successfully!', 'success')
+        return redirect(url_for('category.categories'))
+
+    except Exception as e:
+        flash(f'Error updating category: {str(e)}', 'error')
+        return redirect(url_for('category.edit_category', category_id=category.id))
+
+
+def _parse_max_single_amount() -> Optional[Decimal]:
+    """Parse max_single_amount from form, returning None if empty or invalid."""
+    max_amount_str = request.form.get('max_single_amount', '').strip()
+    if not max_amount_str:
+        return None
+    try:
+        amount = Decimal(max_amount_str)
+        return amount if amount > 0 else None
+    except (ValueError, TypeError):
+        return None
+
+
+def _is_duplicate_category(
+    name: str,
+    category_type: str,
+    exclude_id: Optional[int] = None
+) -> bool:
+    """Check if a category with same name and type already exists."""
+    query = Category.query.filter_by(
+        user_id=current_user.id,
+        name=name,
+        category_type=category_type
+    )
+    if exclude_id:
+        query = query.filter(Category.id != exclude_id)
+    return query.first() is not None
 
 
 @category_bp.route('/delete_category/<int:category_id>', methods=['POST'])
