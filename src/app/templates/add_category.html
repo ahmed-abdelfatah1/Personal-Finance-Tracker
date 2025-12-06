@@ -31,6 +31,15 @@
                 <span class="form-text">Choose a color to identify this category</span>
             </div>
 
+            <div class="form-group" id="max-amount-group" style="display: none;">
+                <label class="form-label">Max Single Transaction Amount (Optional)</label>
+                <input type="number" name="max_single_amount" class="form-control" 
+                       step="0.01" min="0" placeholder="e.g., 500.00">
+                <span class="form-text">
+                    Set a limit for single transactions. You'll be warned when exceeding this amount.
+                </span>
+            </div>
+
             <div class="btn-group mt-3">
                 <button type="submit" class="btn btn-primary">Create Category</button>
                 <a href="{{ url_for('category.categories') }}" class="btn btn-outline">Cancel</a>
@@ -38,5 +47,16 @@
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const typeSelect = document.querySelector('select[name="category_type"]');
+    const maxAmountGroup = document.getElementById('max-amount-group');
+    
+    typeSelect.addEventListener('change', function() {
+        maxAmountGroup.style.display = this.value === 'Expense' ? 'block' : 'none';
+    });
+});
+</script>
 {% endblock %}
 

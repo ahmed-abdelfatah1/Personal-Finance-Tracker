@@ -10,7 +10,7 @@
         <h2>Add New Transaction</h2>
     </div>
     <div class="card-body">
-        <form method="POST" action="{{ url_for('transaction.add_transaction') }}">
+        <form method="POST" action="{{ url_for('transaction.add_transaction') }}" id="transaction-form">
             <div class="form-row">
                 <div class="form-group">
                     <label class="form-label">Date</label>
@@ -18,7 +18,7 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Type</label>
-                    <select name="transaction_type" class="form-control" required>
+                    <select name="transaction_type" id="transaction-type" class="form-control" required>
                         <option value="">Select Type</option>
                         <option value="Income">Income (+)</option>
                         <option value="Expense">Expense (-)</option>
@@ -28,7 +28,11 @@
 
             <div class="form-group">
                 <label class="form-label">Amount</label>
-                <input type="number" name="amount" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+                <input type="number" name="amount" id="amount" class="form-control" step="0.01" min="0.01" placeholder="0.00" required>
+            </div>
+
+            <div id="limit-warning" class="alert alert-warning" style="display: none;">
+                <strong>⚠️ Warning:</strong> <span id="limit-warning-text"></span>
             </div>
 
             <div class="form-row">
@@ -43,10 +47,12 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Category</label>
-                    <select name="category_id" class="form-control" required>
+                    <select name="category_id" id="category-select" class="form-control" required>
                         <option value="">Select Category</option>
                         {% for category in categories %}
-                        <option value="{{ category.id }}">{{ category.name }} ({{ category.category_type }})</option>
+                        <option value="{{ category.id }}" data-type="{{ category.category_type }}">
+                            {{ category.name }} ({{ category.category_type }})
+                        </option>
                         {% endfor %}
                     </select>
                 </div>
@@ -57,6 +63,8 @@
                 <input type="text" name="description" class="form-control" placeholder="e.g., Grocery shopping">
             </div>
 
+            <input type="hidden" name="confirm_limit" id="confirm-limit" value="false">
+
             <div class="btn-group mt-3">
                 <button type="submit" class="btn btn-primary">Add Transaction</button>
                 <a href="{{ url_for('transaction.transactions') }}" class="btn btn-outline">Cancel</a>
@@ -64,4 +72,48 @@
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const categoryLimits = {{ category_limits|safe }};
+    const form = document.getElementById('transaction-form');
+    const categorySelect = document.getElementById('category-select');
+    const amountInput = document.getElementById('amount');
+    const typeSelect = document.getElementById('transaction-type');
+    const limitWarning = document.getElementById('limit-warning');
+    const limitWarningText = document.getElementById('limit-warning-text');
+    const confirmLimitInput = document.getElementById('confirm-limit');
+
+    function checkLimit() {
+        const categoryId = categorySelect.value;
+        const amount = parseFloat(amountInput.value) || 0;
+        const transactionType = typeSelect.value;
+        const limit = categoryLimits[categoryId];
+
+        if (transactionType === 'Expense' && limit && amount > limit) {
+            limitWarningText.textContent = `This amount (${amount.toFixed(2)}) exceeds the limit (${limit.toFixed(2)}) set for this category.`;
+            limitWarning.style.display = 'block';
+            return true;
+        } else {
+            limitWarning.style.display = 'none';
+            return false;
+        }
+    }
+
+    categorySelect.addEventListener('change', checkLimit);
+    amountInput.addEventListener('input', checkLimit);
+    typeSelect.addEventListener('change', checkLimit);
+
+    form.addEventListener('submit', function(e) {
+        const isOverLimit = checkLimit();
+        if (isOverLimit && confirmLimitInput.value !== 'true') {
+            e.preventDefault();
+            if (confirm('This transaction exceeds the category spending limit. Do you want to proceed anyway?')) {
+                confirmLimitInput.value = 'true';
+                form.submit();
+            }
+        }
+    });
+});
+</script>
 {% endblock %}

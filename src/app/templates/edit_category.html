@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Category - Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('category.categories') }}" class="back-link">← Back to Categories</a>
+
+<div class="card" style="max-width: 500px;">
+    <div class="card-header">
+        <h2>Edit Category</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST" action="{{ url_for('category.edit_category', category_id=category.id) }}">
+            <div class="form-group">
+                <label class="form-label">Category Name</label>
+                <input type="text" name="name" class="form-control" 
+                       value="{{ category.name }}" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Type</label>
+                <input type="text" class="form-control" 
+                       value="{{ category.category_type }}" disabled>
+                <span class="form-text">Category type cannot be changed</span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Color</label>
+                <input type="color" name="color" class="form-control" 
+                       value="{{ category.color or '#3498db' }}" 
+                       style="height: 40px; padding: 4px;">
+            </div>
+
+            {% if category.category_type == 'Expense' %}
+            <div class="form-group">
+                <label class="form-label">Max Single Transaction Amount (Optional)</label>
+                <input type="number" name="max_single_amount" class="form-control" 
+                       step="0.01" min="0" 
+                       value="{{ category.max_single_amount if category.max_single_amount else '' }}"
+                       placeholder="e.g., 500.00">
+                <span class="form-text">
+                    Set a limit for single transactions. You'll be warned when exceeding this amount.
+                </span>
+            </div>
+            {% endif %}
+
+            <div class="btn-group mt-3">
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <a href="{{ url_for('category.categories') }}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+

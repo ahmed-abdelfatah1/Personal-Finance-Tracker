@@ -21,9 +21,12 @@
                         <span class="category-dot" style="background-color: {{ category.color or '#10b981' }}"></span>
                         <span>{{ category.name }}</span>
                     </div>
-                    <form method="POST" action="{{ url_for('category.delete_category', category_id=category.id) }}" onsubmit="return confirm('Delete this category?');">
-                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                    </form>
+                    <div class="table-actions">
+                        <a href="{{ url_for('category.edit_category', category_id=category.id) }}" class="btn btn-sm btn-outline">Edit</a>
+                        <form method="POST" action="{{ url_for('category.delete_category', category_id=category.id) }}" style="display:inline;" onsubmit="return confirm('Delete this category?');">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </div>
                 </div>
                 {% endfor %}
             {% else %}
@@ -47,9 +50,12 @@
                         <span class="badge badge-warning" style="margin-left: 0.5rem;">Max: {{ "%.2f"|format(category.max_single_amount) }}</span>
                         {% endif %}
                     </div>
-                    <form method="POST" action="{{ url_for('category.delete_category', category_id=category.id) }}" onsubmit="return confirm('Delete this category?');">
-                        <button type="submit" class="btn btn-sm btn-danger">Delete</button>
-                    </form>
+                    <div class="table-actions">
+                        <a href="{{ url_for('category.edit_category', category_id=category.id) }}" class="btn btn-sm btn-outline">Edit</a>
+                        <form method="POST" action="{{ url_for('category.delete_category', category_id=category.id) }}" style="display:inline;" onsubmit="return confirm('Delete this category?');">
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </div>
                 </div>
                 {% endfor %}
             {% else %}
