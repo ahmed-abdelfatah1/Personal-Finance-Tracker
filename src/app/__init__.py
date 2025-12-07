@@ -36,6 +36,7 @@ def _register_blueprints(app: Flask) -> None:
         budget_bp,
         category_bp,
         report_bp,
+        goal_bp,
     )
 
     app.register_blueprint(auth_bp)
@@ -45,4 +46,5 @@ def _register_blueprints(app: Flask) -> None:
     app.register_blueprint(budget_bp)
     app.register_blueprint(category_bp)
     app.register_blueprint(report_bp)
+    app.register_blueprint(goal_bp)
 
