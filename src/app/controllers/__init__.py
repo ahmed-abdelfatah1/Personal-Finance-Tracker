@@ -8,6 +8,7 @@ from .budget_routes import budget_bp
 from .category_routes import category_bp
 from .report_routes import report_bp
 from .goal_routes import goal_bp
+from .recurring_routes import recurring_bp
 
 __all__ = [
     'auth_bp',
@@ -18,5 +19,6 @@ __all__ = [
     'category_bp',
     'report_bp',
     'goal_bp',
+    'recurring_bp',
 ]
 

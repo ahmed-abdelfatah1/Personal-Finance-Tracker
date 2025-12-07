@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Recurring Transactions - Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🔄 Recurring Transactions</h1>
+    <div class="d-flex gap-2">
+        <form method="POST" action="{{ url_for('recurring.generate_transactions') }}" style="display: inline;">
+            <button type="submit" class="btn btn-success">⚡ Generate Due Transactions</button>
+        </form>
+        <a href="{{ url_for('recurring.add_recurring') }}" class="btn btn-primary">+ Add Recurring Transaction</a>
+    </div>
+</div>
+
+{% if recurring_txns %}
+<div class="card">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Frequency</th>
+                        <th>Next Due</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for recurring in recurring_txns %}
+                    <tr>
+                        <td>
+                            <strong>{{ recurring.name }}</strong>
+                            {% if recurring.description %}
+                            <br><small class="text-muted">{{ recurring.description }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge {% if recurring.transaction_type == 'Income' %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ recurring.transaction_type }}
+                            </span>
+                        </td>
+                        <td>{{ recurring.amount|round(2) }} EGP</td>
+                        <td>
+                            <span class="badge bg-info">{{ recurring.frequency|capitalize }}</span>
+                        </td>
+                        <td>
+                            {{ recurring.next_due.strftime('%Y-%m-%d') }}
+                            {% if recurring.next_due <= today %}
+                            <span class="badge bg-warning">Due</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if recurring.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('recurring.edit_recurring', recurring_id=recurring.id) }}" 
+                                   class="btn btn-outline-primary">Edit</a>
+                                <form method="POST" action="{{ url_for('recurring.toggle_recurring', recurring_id=recurring.id) }}" 
+                                      style="display: inline;">
+                                    <button type="submit" class="btn btn-outline-warning">
+                                        {% if recurring.is_active %}Pause{% else %}Resume{% endif %}
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('recurring.delete_recurring', recurring_id=recurring.id) }}" 
+                                      onsubmit="return confirm('Delete this recurring transaction?');" style="display: inline;">
+                                    <button type="submit" class="btn btn-outline-danger">Delete</button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body">
+        <div class="empty-state">
+            <div class="empty-state-icon">🔄</div>
+            <h3>No Recurring Transactions</h3>
+            <p>Set up recurring transactions to automatically generate regular income or expenses.</p>
+            <a href="{{ url_for('recurring.add_recurring') }}" class="btn btn-primary">Create Your First Recurring Transaction</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
