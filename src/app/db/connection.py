@@ -30,7 +30,7 @@ def get_session():
 
 def init_db(app: Optional[Flask] = None):
     """Initialize the database schema - creates all tables."""
-    from ..models import finance_models  # noqa: F401
+    from ..models import finance_models  
     
     if app is not None:
         with app.app_context():
