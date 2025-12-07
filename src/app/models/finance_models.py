@@ -40,6 +40,12 @@ class User(UserMixin, db.Model):
     transaction_templates: Mapped[List["TransactionTemplate"]] = relationship(
         "TransactionTemplate", back_populates="user", cascade="all, delete-orphan"
     )
+    goals: Mapped[List["Goal"]] = relationship(
+        "Goal", back_populates="user", cascade="all, delete-orphan"
+    )
+    recurring_transactions: Mapped[List["RecurringTransaction"]] = relationship(
+        "RecurringTransaction", back_populates="user", cascade="all, delete-orphan"
+    )
 
     def set_password(self, password: str) -> None:
         self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
@@ -244,6 +250,77 @@ class TransactionTemplate(db.Model):
 
     def __repr__(self) -> str:
         return f'<TransactionTemplate {self.name}>'
+
+
+class Goal(db.Model):
+    """Financial goal model for tracking savings goals."""
+    __tablename__ = 'goal'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey('user.id', ondelete='CASCADE'), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    target_amount: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), nullable=False)
+    current_amount: Mapped[Decimal] = mapped_column(
+        DECIMAL(10, 2), default=Decimal('0.00')
+    )
+    target_date: Mapped[Optional[datetime]] = mapped_column(Date)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped["User"] = relationship("User", back_populates="goals")
+
+    @property
+    def progress_percentage(self) -> float:
+        if self.target_amount == 0:
+            return 0.0
+        return float((self.current_amount / self.target_amount) * 100)
+
+    @property
+    def remaining_amount(self) -> Decimal:
+        return self.target_amount - self.current_amount
+
+    @property
+    def is_completed(self) -> bool:
+        return self.current_amount >= self.target_amount
+
+    def __repr__(self) -> str:
+        return f'<Goal {self.name} - {self.current_amount}/{self.target_amount}>'
+
+
+class RecurringTransaction(db.Model):
+    """Recurring transaction model for automatic transaction generation."""
+    __tablename__ = 'recurring_transaction'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey('user.id', ondelete='CASCADE'), nullable=False
+    )
+    account_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey('account.id', ondelete='CASCADE'), nullable=False
+    )
+    category_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey('category.id', ondelete='CASCADE'), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), nullable=False)
+    transaction_type: Mapped[str] = mapped_column(String(10), nullable=False)
+    frequency: Mapped[str] = mapped_column(String(20), nullable=False)  # daily, weekly, monthly, yearly
+    start_date: Mapped[datetime] = mapped_column(Date, nullable=False)
+    end_date: Mapped[Optional[datetime]] = mapped_column(Date)
+    last_generated: Mapped[Optional[datetime]] = mapped_column(Date)
+    next_due: Mapped[datetime] = mapped_column(Date, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(String(255))
+    is_active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    user: Mapped["User"] = relationship("User", back_populates="recurring_transactions")
+    account: Mapped["Account"] = relationship("Account")
+    category: Mapped["Category"] = relationship("Category")
+
+    def __repr__(self) -> str:
+        return f'<RecurringTransaction {self.name} - {self.frequency}>'
 
 
 class Currency(db.Model):

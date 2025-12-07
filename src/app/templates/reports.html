@@ -1,21 +1,183 @@
 {% extends "base.html" %}
 
-{% block title %}Reports - Personal Finance Tracker{% endblock %}
+{% block title %}Financial Reports - Personal Finance Tracker{% endblock %}
 
 {% block content %}
 <div class="page-header">
-    <h1>Reports</h1>
+    <h1>📊 Financial Reports</h1>
 </div>
 
-<div class="card">
+<!-- Date Range Filter -->
+<div class="card mb-4">
     <div class="card-body">
-        <div class="empty-state">
-            <div class="empty-state-icon">📈</div>
-            <h3>Reports Coming Soon</h3>
-            <p>Financial reporting features are under development.</p>
-            <p class="text-muted">Soon you'll be able to generate monthly and annual reports, view charts, and export data.</p>
+        <form method="GET" action="{{ url_for('report.reports') }}" class="row g-3">
+            <div class="col-md-4">
+                <label for="start_date" class="form-label">Start Date</label>
+                <input type="date" class="form-control" id="start_date" name="start_date" 
+                       value="{{ start_date }}" required>
+            </div>
+            <div class="col-md-4">
+                <label for="end_date" class="form-label">End Date</label>
+                <input type="date" class="form-control" id="end_date" name="end_date" 
+                       value="{{ end_date }}" required>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">Generate Report</button>
+                <a href="{{ url_for('report.export_report', start_date=start_date, end_date=end_date) }}" 
+                   class="btn btn-success">📥 Export CSV</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if report %}
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h6 class="card-title">Total Income</h6>
+                <h3>{{ report.total_income|default(0)|round(2) }} EGP</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-danger">
+            <div class="card-body">
+                <h6 class="card-title">Total Expenses</h6>
+                <h3>{{ report.total_expense|default(0)|round(2) }} EGP</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white {% if report.net_savings >= 0 %}bg-info{% else %}bg-warning{% endif %}">
+            <div class="card-body">
+                <h6 class="card-title">Net Savings</h6>
+                <h3>{{ report.net_savings|default(0)|round(2) }} EGP</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-white bg-secondary">
+            <div class="card-body">
+                <h6 class="card-title">Transactions</h6>
+                <h3>{{ report.transaction_count|default(0) }}</h3>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- Category Breakdown -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Category Breakdown</h5>
+    </div>
+    <div class="card-body">
+        {% if report.category_breakdown %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th>Type</th>
+                        <th class="text-end">Total Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cat_name, cat_type, total in report.category_breakdown %}
+                    <tr>
+                        <td>{{ cat_name }}</td>
+                        <td>
+                            <span class="badge {% if cat_type == 'Income' %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ cat_type }}
+                            </span>
+                        </td>
+                        <td class="text-end">{{ total|round(2) }} EGP</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">No transactions in this period.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Account Balances -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5>Account Balances</h5>
+    </div>
+    <div class="card-body">
+        {% if report.accounts %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Account Name</th>
+                        <th>Type</th>
+                        <th class="text-end">Current Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account in report.accounts %}
+                    <tr>
+                        <td>{{ account.name }}</td>
+                        <td>{{ account.account_type or 'N/A' }}</td>
+                        <td class="text-end">{{ account.current_balance|round(2) }} {{ account.currency }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">No accounts found.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Recent Transactions Preview -->
+<div class="card">
+    <div class="card-header">
+        <h5>Recent Transactions (Preview)</h5>
+    </div>
+    <div class="card-body">
+        {% if report.transactions %}
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th class="text-end">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for txn in report.transactions %}
+                    <tr>
+                        <td>{{ txn.date.strftime('%Y-%m-%d') }}</td>
+                        <td>
+                            <span class="badge {% if txn.transaction_type == 'Income' %}bg-success{% else %}bg-danger{% endif %}">
+                                {{ txn.transaction_type }}
+                            </span>
+                        </td>
+                        <td>{{ txn.category.name if txn.category else 'N/A' }}</td>
+                        <td>{{ txn.description or '-' }}</td>
+                        <td class="text-end">{{ txn.amount|round(2) }} EGP</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted">No transactions in this period.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}
 

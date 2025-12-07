@@ -7,7 +7,9 @@ from .finance_models import (
     Transaction,
     Budget,
     TransactionTemplate,
-    Currency
+    Currency,
+    Goal,
+    RecurringTransaction
 )
 
 __all__ = [
@@ -17,5 +19,7 @@ __all__ = [
     'Transaction',
     'Budget',
     'TransactionTemplate',
-    'Currency'
+    'Currency',
+    'Goal',
+    'RecurringTransaction'
 ]
