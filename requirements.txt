@@ -1,3 +1,4 @@
+# Core Dependencies
 Flask==3.0.3
 Flask-SQLAlchemy==3.1.1
 SQLAlchemy==2.0.36
@@ -7,5 +8,9 @@ python-dotenv==1.0.1
 
 # Testing
 pytest==8.3.3
+pytest-cov==4.1.0
 
-
+# Linting (optional, for development)
+flake8==7.0.0
+black==24.3.0
+isort==5.13.2
