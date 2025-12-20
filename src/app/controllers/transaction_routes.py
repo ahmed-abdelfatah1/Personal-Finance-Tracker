@@ -8,8 +8,12 @@ from typing import Optional
 from flask import Blueprint, render_template, request, redirect, flash, url_for
 from flask_login import login_required, current_user
 
-from ..extensions import db
-from ..models import Transaction, Account, Category, Budget
+from ..repositories import (
+    TransactionRepository,
+    AccountRepository,
+    CategoryRepository,
+    BudgetRepository
+)
 
 transaction_bp = Blueprint('transaction', __name__)
 
@@ -17,12 +21,36 @@ transaction_bp = Blueprint('transaction', __name__)
 @transaction_bp.route('/transactions')
 @login_required
 def transactions():
-    query = Transaction.query.filter_by(user_id=current_user.id)
-    query = _apply_filters(query)
-    all_transactions = query.order_by(Transaction.date.desc()).all()
+    account_id = request.args.get('account', type=int)
+    category_id = request.args.get('category', type=int)
+    transaction_type = request.args.get('type')
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
 
-    accounts = Account.query.filter_by(user_id=current_user.id).all()
-    categories = Category.query.filter_by(user_id=current_user.id).all()
+    start_date = None
+    end_date = None
+    if start_date_str:
+        try:
+            start_date = date.fromisoformat(start_date_str)
+        except (ValueError, TypeError):
+            pass
+    if end_date_str:
+        try:
+            end_date = date.fromisoformat(end_date_str)
+        except (ValueError, TypeError):
+            pass
+
+    all_transactions = TransactionRepository.filter_transactions(
+        user_id=current_user.id,
+        account_id=account_id,
+        category_id=category_id,
+        transaction_type=transaction_type,
+        start_date=start_date,
+        end_date=end_date
+    )
+
+    accounts = AccountRepository.get_all_by_user(current_user.id)
+    categories = CategoryRepository.get_all_by_user(current_user.id)
 
     return render_template(
         'transactions.html',
@@ -32,34 +60,6 @@ def transactions():
     )
 
 
-def _apply_filters(query):
-    """Apply query filters for transactions based on request arguments."""
-    account_id = request.args.get('account', type=int)
-    category_id = request.args.get('category', type=int)
-    transaction_type = request.args.get('type')
-    start_date_str = request.args.get('start_date')
-    end_date_str = request.args.get('end_date')
-
-    if account_id:
-        query = query.filter_by(account_id=account_id)
-    if category_id:
-        query = query.filter_by(category_id=category_id)
-    if transaction_type in ['Income', 'Expense']:
-        query = query.filter_by(transaction_type=transaction_type)
-    if start_date_str:
-        try:
-            start_date = date.fromisoformat(start_date_str)
-            query = query.filter(Transaction.date >= start_date)
-        except (ValueError, TypeError):
-            pass
-    if end_date_str:
-        try:
-            end_date = date.fromisoformat(end_date_str)
-            query = query.filter(Transaction.date <= end_date)
-        except (ValueError, TypeError):
-            pass
-
-    return query
 
 
 @transaction_bp.route('/add_transaction', methods=['GET', 'POST'])
@@ -73,8 +73,8 @@ def add_transaction():
 
 def _render_transaction_form():
     """Render the add transaction form with category limits data."""
-    accounts = Account.query.filter_by(user_id=current_user.id).all()
-    categories = Category.query.filter_by(user_id=current_user.id).all()
+    accounts = AccountRepository.get_all_by_user(current_user.id)
+    categories = CategoryRepository.get_all_by_user(current_user.id)
     category_limits = _build_category_limits_json(categories)
 
     return render_template(
@@ -106,12 +106,30 @@ def _create_transaction():
             flash(limit_warning, 'warning')
             return redirect(url_for('transaction.add_transaction'))
 
-        new_transaction = Transaction(user_id=current_user.id, **data)
-        db.session.add(new_transaction)
+        new_transaction = TransactionRepository.create(
+            user_id=current_user.id,
+            account_id=data['account_id'],
+            category_id=data['category_id'],
+            transaction_date=data['date'],
+            amount=data['amount'],
+            transaction_type=data['transaction_type'],
+            description=data.get('description'),
+            notes=None
+        )
 
-        _update_account_balance(data['account_id'], data['amount'], data['transaction_type'])
-        _update_affected_budgets(data['category_id'], data['date'], data['transaction_type'])
-        db.session.commit()
+        account = AccountRepository.get_by_id(data['account_id'])
+        AccountRepository.update_balance(
+            account,
+            data['amount'],
+            is_income=(data['transaction_type'] == 'Income')
+        )
+
+        BudgetRepository.update_affected_budgets(
+            current_user.id,
+            data['category_id'],
+            data['date'].month,
+            data['date'].year
+        )
 
         flash('Transaction added successfully!', 'success')
         return redirect(url_for('transaction.transactions'))
@@ -160,39 +178,11 @@ def _extract_transaction_data() -> dict | None:
     }
 
 
-def _update_account_balance(account_id: int, amount: Decimal, transaction_type: str) -> None:
-    """Update account balance based on transaction type."""
-    account = Account.query.get(account_id)
-    amount_decimal = Decimal(str(amount))
-    if transaction_type == 'Income':
-        account.current_balance += amount_decimal
-    else:
-        account.current_balance -= amount_decimal
-
-
-def _update_affected_budgets(
-    category_id: int,
-    transaction_date: date,
-    transaction_type: str
-) -> None:
-    """Update budgets affected by a transaction change."""
-    if transaction_type != 'Expense':
-        return
-
-    budgets = Budget.query.filter_by(
-        user_id=current_user.id,
-        category_id=category_id,
-        month=transaction_date.month,
-        year=transaction_date.year
-    ).all()
-
-    for budget in budgets:
-        budget.update_current_spent()
 
 
 def _check_category_limit(category_id: int, amount: Decimal) -> Optional[str]:
     """Check if amount exceeds category's max_single_amount limit."""
-    category = Category.query.get(category_id)
+    category = CategoryRepository.get_by_id(category_id)
     if not category or not category.max_single_amount:
         return None
 
@@ -214,10 +204,7 @@ def _is_limit_confirmed() -> bool:
 @transaction_bp.route('/edit_transaction/<int:transaction_id>', methods=['GET', 'POST'])
 @login_required
 def edit_transaction(transaction_id: int):
-    transaction = Transaction.query.filter_by(
-        id=transaction_id,
-        user_id=current_user.id
-    ).first()
+    transaction = TransactionRepository.get_by_id_and_user(transaction_id, current_user.id)
 
     if not transaction:
         flash('Transaction not found', 'error')
@@ -229,10 +216,10 @@ def edit_transaction(transaction_id: int):
     return _update_transaction(transaction)
 
 
-def _render_edit_form(transaction: Transaction):
+def _render_edit_form(transaction):
     """Render the edit transaction form with category limits data."""
-    accounts = Account.query.filter_by(user_id=current_user.id).all()
-    categories = Category.query.filter_by(user_id=current_user.id).all()
+    accounts = AccountRepository.get_all_by_user(current_user.id)
+    categories = CategoryRepository.get_all_by_user(current_user.id)
     category_limits = _build_category_limits_json(categories)
 
     return render_template(
@@ -244,7 +231,7 @@ def _render_edit_form(transaction: Transaction):
     )
 
 
-def _update_transaction(transaction: Transaction):
+def _update_transaction(transaction):
     """Process transaction update form submission with limit checking."""
     try:
         old_amount = Decimal(str(transaction.amount))
@@ -283,25 +270,39 @@ def _update_transaction(transaction: Transaction):
                 url_for('transaction.edit_transaction', transaction_id=transaction.id)
             )
 
-        _reverse_old_balance(old_account_id, old_amount, old_type)
+        # Reverse old balance
+        old_account = AccountRepository.get_by_id(old_account_id)
+        AccountRepository.reverse_balance(old_account, old_amount, old_type == 'Income')
 
-        transaction.account_id = int(request.form.get('account_id'))
-        transaction.category_id = new_category_id
-        transaction.date = transaction_date
-        transaction.amount = new_amount
-        transaction.transaction_type = new_type
-        transaction.description = request.form.get('description', '')
-
-        _update_account_balance(
-            transaction.account_id,
-            transaction.amount,
-            transaction.transaction_type
+        # Update transaction
+        TransactionRepository.update(
+            transaction,
+            account_id=int(request.form.get('account_id')),
+            category_id=new_category_id,
+            date=transaction_date,
+            amount=new_amount,
+            transaction_type=new_type,
+            description=request.form.get('description', '')
         )
 
-        _update_affected_budgets(old_category_id, old_date, old_type)
-        _update_affected_budgets(new_category_id, transaction_date, new_type)
+        # Update new account balance
+        new_account = AccountRepository.get_by_id(int(request.form.get('account_id')))
+        AccountRepository.update_balance(
+            new_account,
+            new_amount,
+            is_income=(new_type == 'Income')
+        )
 
-        db.session.commit()
+        # Update affected budgets
+        if old_type == 'Expense':
+            BudgetRepository.update_affected_budgets(
+                current_user.id, old_category_id, old_date.month, old_date.year
+            )
+        if new_type == 'Expense':
+            BudgetRepository.update_affected_budgets(
+                current_user.id, new_category_id, transaction_date.month, transaction_date.year
+            )
+
         flash('Transaction updated successfully!', 'success')
         return redirect(url_for('transaction.transactions'))
 
@@ -312,23 +313,12 @@ def _update_transaction(transaction: Transaction):
         )
 
 
-def _reverse_old_balance(account_id: int, amount: Decimal, transaction_type: str) -> None:
-    """Reverse the account balance change from a transaction."""
-    account = Account.query.get(account_id)
-    amount_decimal = Decimal(str(amount))
-    if transaction_type == 'Income':
-        account.current_balance -= amount_decimal
-    else:
-        account.current_balance += amount_decimal
 
 
 @transaction_bp.route('/delete_transaction/<int:transaction_id>', methods=['POST'])
 @login_required
 def delete_transaction(transaction_id: int):
-    transaction = Transaction.query.filter_by(
-        id=transaction_id,
-        user_id=current_user.id
-    ).first()
+    transaction = TransactionRepository.get_by_id_and_user(transaction_id, current_user.id)
 
     if not transaction:
         flash('Transaction not found', 'error')
@@ -339,10 +329,23 @@ def delete_transaction(transaction_id: int):
         transaction_date = transaction.date
         transaction_type = transaction.transaction_type
 
-        _reverse_old_balance(transaction.account_id, transaction.amount, transaction.transaction_type)
-        db.session.delete(transaction)
-        _update_affected_budgets(category_id, transaction_date, transaction_type)
-        db.session.commit()
+        # Reverse account balance
+        account = AccountRepository.get_by_id(transaction.account_id)
+        AccountRepository.reverse_balance(
+            account,
+            transaction.amount,
+            transaction_type == 'Income'
+        )
+
+        # Delete transaction
+        TransactionRepository.delete(transaction)
+
+        # Update affected budgets
+        if transaction_type == 'Expense':
+            BudgetRepository.update_affected_budgets(
+                current_user.id, category_id, transaction_date.month, transaction_date.year
+            )
+
         flash('Transaction deleted successfully!', 'success')
     except Exception as e:
         flash(f'Error deleting transaction: {str(e)}', 'error')

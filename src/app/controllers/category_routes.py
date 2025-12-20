@@ -6,8 +6,7 @@ from typing import Optional
 from flask import Blueprint, render_template, request, redirect, flash, url_for
 from flask_login import login_required, current_user
 
-from ..extensions import db
-from ..models import Category, Transaction, Budget
+from ..repositories import CategoryRepository
 
 category_bp = Blueprint('category', __name__)
 
@@ -15,10 +14,8 @@ category_bp = Blueprint('category', __name__)
 @category_bp.route('/categories')
 @login_required
 def categories():
-    user_categories = Category.query.filter_by(user_id=current_user.id).all()
-
-    income_categories = [c for c in user_categories if c.category_type == 'Income']
-    expense_categories = [c for c in user_categories if c.category_type == 'Expense']
+    income_categories = CategoryRepository.get_income_categories(current_user.id)
+    expense_categories = CategoryRepository.get_expense_categories(current_user.id)
 
     return render_template(
         'categories.html',
@@ -48,20 +45,17 @@ def add_category():
             flash('Invalid category type', 'error')
             return redirect(url_for('category.add_category'))
 
-        if _is_duplicate_category(name, category_type):
+        if CategoryRepository.exists_by_name_and_type(current_user.id, name, category_type):
             flash(f'Category "{name}" ({category_type}) already exists', 'error')
             return redirect(url_for('category.add_category'))
 
-        new_category = Category(
+        CategoryRepository.create(
             user_id=current_user.id,
             name=name,
             category_type=category_type,
             color=color,
             max_single_amount=max_single_amount
         )
-
-        db.session.add(new_category)
-        db.session.commit()
 
         flash(f'Category "{name}" created successfully!', 'success')
         return redirect(url_for('category.categories'))
@@ -75,10 +69,7 @@ def add_category():
 @login_required
 def edit_category(category_id: int):
     """Edit an existing category."""
-    category = Category.query.filter_by(
-        id=category_id,
-        user_id=current_user.id
-    ).first()
+    category = CategoryRepository.get_by_id_and_user(category_id, current_user.id)
 
     if not category:
         flash('Category not found', 'error')
@@ -90,7 +81,7 @@ def edit_category(category_id: int):
     return _update_category(category)
 
 
-def _update_category(category: Category):
+def _update_category(category):
     """Process category update form submission."""
     try:
         name = request.form.get('name')
@@ -101,15 +92,18 @@ def _update_category(category: Category):
             flash('Category name is required', 'error')
             return redirect(url_for('category.edit_category', category_id=category.id))
 
-        if _is_duplicate_category(name, category.category_type, exclude_id=category.id):
+        if CategoryRepository.exists_by_name_and_type(
+            current_user.id, name, category.category_type, exclude_id=category.id
+        ):
             flash(f'Category "{name}" ({category.category_type}) already exists', 'error')
             return redirect(url_for('category.edit_category', category_id=category.id))
 
-        category.name = name
-        category.color = color
-        category.max_single_amount = max_single_amount
-
-        db.session.commit()
+        CategoryRepository.update(
+            category,
+            name=name,
+            color=color,
+            max_single_amount=max_single_amount
+        )
         flash(f'Category "{name}" updated successfully!', 'success')
         return redirect(url_for('category.categories'))
 
@@ -130,56 +124,30 @@ def _parse_max_single_amount() -> Optional[Decimal]:
         return None
 
 
-def _is_duplicate_category(
-    name: str,
-    category_type: str,
-    exclude_id: Optional[int] = None
-) -> bool:
-    """Check if a category with same name and type already exists."""
-    query = Category.query.filter_by(
-        user_id=current_user.id,
-        name=name,
-        category_type=category_type
-    )
-    if exclude_id:
-        query = query.filter(Category.id != exclude_id)
-    return query.first() is not None
 
 
 @category_bp.route('/delete_category/<int:category_id>', methods=['POST'])
 @login_required
 def delete_category(category_id: int):
-    category = Category.query.filter_by(
-        id=category_id,
-        user_id=current_user.id
-    ).first()
+    category = CategoryRepository.get_by_id_and_user(category_id, current_user.id)
 
     if not category:
         flash('Category not found', 'error')
         return redirect(url_for('category.categories'))
 
-    transaction_count = Transaction.query.filter_by(category_id=category.id).count()
-    if transaction_count > 0:
+    can_delete, reason = CategoryRepository.can_delete(category.id)
+    if not can_delete:
+        category_name = category.name
         flash(
-            f'Cannot delete category "{category.name}" because it has '
-            f'{transaction_count} transactions. Delete or reassign transactions first.',
-            'error'
-        )
-        return redirect(url_for('category.categories'))
-
-    budget_count = Budget.query.filter_by(category_id=category.id).count()
-    if budget_count > 0:
-        flash(
-            f'Cannot delete category "{category.name}" because it has '
-            f'{budget_count} budgets. Delete budgets first.',
+            f'Cannot delete category "{category_name}" because it {reason}.',
             'error'
         )
         return redirect(url_for('category.categories'))
 
     try:
-        db.session.delete(category)
-        db.session.commit()
-        flash(f'Category "{category.name}" deleted successfully!', 'success')
+        category_name = category.name
+        CategoryRepository.delete(category)
+        flash(f'Category "{category_name}" deleted successfully!', 'success')
     except Exception as e:
         flash(f'Error deleting category: {str(e)}', 'error')
 
