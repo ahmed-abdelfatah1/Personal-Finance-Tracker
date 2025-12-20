@@ -119,9 +119,23 @@ class TransactionRepository:
         category_id: Optional[int] = None,
         transaction_type: Optional[str] = None,
         start_date: Optional[date] = None,
-        end_date: Optional[date] = None
+        end_date: Optional[date] = None,
+        search_query: Optional[str] = None
     ) -> List[Transaction]:
-        """Filter transactions with multiple optional criteria."""
+        """
+        Filter transactions with multiple optional criteria including text search.
+        
+        Args:
+            user_id: User ID
+            account_id: Optional account filter
+            category_id: Optional category filter
+            transaction_type: Optional type filter (Income/Expense)
+            start_date: Optional start date filter
+            end_date: Optional end date filter
+            search_query: Optional text search in description and notes
+        """
+        from sqlalchemy import or_
+        
         query = Transaction.query.filter_by(user_id=user_id)
 
         if account_id:
@@ -134,6 +148,16 @@ class TransactionRepository:
             query = query.filter(Transaction.date >= start_date)
         if end_date:
             query = query.filter(Transaction.date <= end_date)
+        
+        # Text search in description and notes
+        if search_query:
+            search_term = f'%{search_query}%'
+            query = query.filter(
+                or_(
+                    Transaction.description.ilike(search_term),
+                    Transaction.notes.ilike(search_term)
+                )
+            )
 
         return query.order_by(Transaction.date.desc()).all()
 

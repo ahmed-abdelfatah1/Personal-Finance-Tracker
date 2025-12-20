@@ -4,13 +4,31 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>📊 Financial Reports</h1>
+    <div>
+        <h1>📊 Financial Reports</h1>
+    </div>
+    <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <form method="GET" action="{{ url_for('report.reports') }}" style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="hidden" name="start_date" value="{{ start_date }}">
+            <input type="hidden" name="end_date" value="{{ end_date }}">
+            <label for="currency-select" style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">View in:</label>
+            <select name="currency" id="currency-select" class="form-control" style="width: auto; padding: 0.5rem 2rem 0.5rem 0.75rem;" onchange="this.form.submit()">
+                {% for currency in currencies %}
+                <option value="{{ currency.code }}" {% if currency.code == selected_currency.code %}selected{% endif %}>
+                    {{ currency.code }} - {{ currency.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+        <a href="{{ url_for('report.monthly_cash_flow', currency=selected_currency_code) }}" class="btn btn-primary">Monthly Cash Flow</a>
+    </div>
 </div>
 
 <!-- Date Range Filter -->
 <div class="card mb-4">
     <div class="card-body">
         <form method="GET" action="{{ url_for('report.reports') }}" class="row g-3">
+            <input type="hidden" name="currency" value="{{ selected_currency_code }}">
             <div class="col-md-4">
                 <label for="start_date" class="form-label">Start Date</label>
                 <input type="date" class="form-control" id="start_date" name="start_date" 
@@ -37,7 +55,7 @@
         <div class="card text-white bg-success">
             <div class="card-body">
                 <h6 class="card-title">Total Income</h6>
-                <h3>{{ report.total_income|default(0)|round(2) }} EGP</h3>
+                <h3>{{ report.total_income|default(0)|round(2) }} {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}</h3>
             </div>
         </div>
     </div>
@@ -45,7 +63,7 @@
         <div class="card text-white bg-danger">
             <div class="card-body">
                 <h6 class="card-title">Total Expenses</h6>
-                <h3>{{ report.total_expense|default(0)|round(2) }} EGP</h3>
+                <h3>{{ report.total_expense|default(0)|round(2) }} {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}</h3>
             </div>
         </div>
     </div>
@@ -53,7 +71,7 @@
         <div class="card text-white {% if report.net_savings >= 0 %}bg-info{% else %}bg-warning{% endif %}">
             <div class="card-body">
                 <h6 class="card-title">Net Savings</h6>
-                <h3>{{ report.net_savings|default(0)|round(2) }} EGP</h3>
+                <h3>{{ report.net_savings|default(0)|round(2) }} {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}</h3>
             </div>
         </div>
     </div>
@@ -92,7 +110,7 @@
                                 {{ cat_type }}
                             </span>
                         </td>
-                        <td class="text-end">{{ total|round(2) }} EGP</td>
+                        <td class="text-end">{{ total|round(2) }} {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -166,7 +184,7 @@
                         </td>
                         <td>{{ txn.category.name if txn.category else 'N/A' }}</td>
                         <td>{{ txn.description or '-' }}</td>
-                        <td class="text-end">{{ txn.amount|round(2) }} EGP</td>
+                        <td class="text-end">{{ txn.amount|round(2) }} {{ txn.account.currency }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

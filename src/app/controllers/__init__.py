@@ -9,6 +9,8 @@ from .category_routes import category_bp
 from .report_routes import report_bp
 from .goal_routes import goal_bp
 from .recurring_routes import recurring_bp
+from .debt_routes import debt_bp
+from .template_routes import template_bp
 
 __all__ = [
     'auth_bp',
@@ -20,5 +22,7 @@ __all__ = [
     'report_bp',
     'goal_bp',
     'recurring_bp',
+    'debt_bp',
+    'template_bp',
 ]
 

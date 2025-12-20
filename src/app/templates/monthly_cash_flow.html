@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}Monthly Cash Flow Report - Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Monthly Net Cash Flow Report</h1>
+    </div>
+    <div style="display: flex; gap: 0.75rem; align-items: center;">
+        <form method="GET" style="display: flex; align-items: center; gap: 0.5rem;">
+            <select name="year" class="form-control" style="width: auto; padding: 0.5rem 2rem 0.5rem 0.75rem;" onchange="this.form.submit()">
+                {% for y in range(2020, 2030) %}
+                <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+            <input type="hidden" name="currency" value="{{ selected_currency_code }}">
+        </form>
+        <form method="GET" style="display: flex; align-items: center; gap: 0.5rem;">
+            <input type="hidden" name="year" value="{{ year }}">
+            <label for="currency-select" style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">View in:</label>
+            <select name="currency" id="currency-select" class="form-control" style="width: auto; padding: 0.5rem 2rem 0.5rem 0.75rem;" onchange="this.form.submit()">
+                {% for currency in currencies %}
+                <option value="{{ currency.code }}" {% if currency.code == selected_currency.code %}selected{% endif %}>
+                    {{ currency.code }} - {{ currency.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+        <a href="{{ url_for('report.reports', currency=selected_currency) }}" class="btn btn-outline">← Back to Reports</a>
+    </div>
+</div>
+
+<div class="chart-container">
+    <canvas id="cashFlowChart"></canvas>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <h3>Total Income ({{ year }})</h3>
+        <p class="stat-value text-success">
+            {{ "%.2f"|format(monthly_data|sum(attribute='income')) }} {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}
+        </p>
+    </div>
+    <div class="stat-card">
+        <h3>Total Expenses ({{ year }})</h3>
+        <p class="stat-value text-danger">
+            {{ "%.2f"|format(monthly_data|sum(attribute='expense')) }} {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}
+        </p>
+    </div>
+    <div class="stat-card">
+        <h3>Net Cash Flow ({{ year }})</h3>
+        <p class="stat-value {% if (monthly_data|sum(attribute='net')) >= 0 %}text-success{% else %}text-danger{% endif %}">
+            {{ "%.2f"|format(monthly_data|sum(attribute='net')) }} {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}
+        </p>
+    </div>
+</div>
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Month</th>
+            <th>Income</th>
+            <th>Expenses</th>
+            <th>Net Cash Flow</th>
+            <th>Transactions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for month in monthly_data %}
+        <tr>
+            <td><strong>{{ month.month_name }}</strong></td>
+            <td class="text-success">{{ "%.2f"|format(month.income) }} {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}</td>
+            <td class="text-danger">{{ "%.2f"|format(month.expense) }} {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}</td>
+            <td class="{% if month.net >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {{ "%.2f"|format(month.net) }} {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}
+            </td>
+            <td>{{ month.transaction_count }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const year = {{ year }};
+    const currency = '{{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}';
+    loadMonthlyCashFlowChart(year, currency);
+});
+</script>
+{% endblock %}
+

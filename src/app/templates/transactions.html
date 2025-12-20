@@ -5,8 +5,27 @@
 {% block content %}
 <div class="page-header">
     <h1>Transactions</h1>
-    <a href="{{ url_for('transaction.add_transaction') }}" class="btn btn-primary">+ Add Transaction</a>
+    <div>
+        <a href="{{ url_for('transaction.import_transactions') }}" class="btn btn-outline">📥 Import CSV</a>
+        <a href="{{ url_for('transaction.add_transaction') }}" class="btn btn-primary">+ Add Transaction</a>
+    </div>
 </div>
+
+{% if transactions|selectattr('needs_conversion')|list|length > 0 %}
+<div class="card mb-3" style="background: var(--info-light); border-left: 4px solid var(--info);">
+    <div class="card-body" style="padding: 1rem;">
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span style="font-size: 1.25rem;">💱</span>
+            <div>
+                <strong style="color: var(--info);">Currency Conversion Active</strong>
+                <p style="margin: 0; font-size: 0.875rem; color: var(--text-secondary);">
+                    Amounts are displayed in {{ user_currency }} (your base currency). Original amounts shown in parentheses when different.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <form method="GET" class="filter-bar">
     <div class="form-group">
@@ -40,6 +59,10 @@
         </select>
     </div>
     <div class="form-group">
+        <label class="form-label">🔍 Search (Description/Notes)</label>
+        <input type="text" name="search" class="form-control" placeholder="Search in description or notes..." value="{{ search_query }}">
+    </div>
+    <div class="form-group">
         <label class="form-label">From Date</label>
         <input type="date" name="start_date" class="form-control" value="{{ request.args.get('start_date', '') }}">
     </div>
@@ -68,24 +91,40 @@
             </tr>
         </thead>
         <tbody>
-            {% for transaction in transactions %}
-            <tr>
+            {% for item in transactions %}
+            {% set transaction = item.transaction %}
+            <tr class="transaction-row">
                 <td>{{ transaction.date.strftime('%b %d, %Y') }}</td>
-                <td>{{ transaction.description or '-' }}</td>
+                <td>
+                    <div style="font-weight: 500;">{{ transaction.description or '-' }}</div>
+                    {% if item.needs_conversion %}
+                    <div class="currency-conversion-hint" style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                        💱 {{ "%.2f"|format(item.original_amount) }} {{ item.original_currency }}
+                    </div>
+                    {% endif %}
+                </td>
                 <td>
                     <span class="category-dot" style="background-color: {{ transaction.category.color or '#6b7280' }}"></span>
                     {{ transaction.category.name }}
                 </td>
-                <td>{{ transaction.account.name }}</td>
+                <td>
+                    <div>{{ transaction.account.name }}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-secondary);">{{ transaction.account.currency }}</div>
+                </td>
                 <td>
                     <span class="badge badge-{{ 'income' if transaction.transaction_type == 'Income' else 'expense' }}">
                         {{ transaction.transaction_type }}
                     </span>
                 </td>
                 <td class="text-right">
-                    <span class="amount {% if transaction.transaction_type == 'Income' %}amount-income{% else %}amount-expense{% endif %}">
-                        {{ "%.2f"|format(transaction.amount) }}
-                    </span>
+                    <div class="amount {% if transaction.transaction_type == 'Income' %}amount-income{% else %}amount-expense{% endif %}" style="font-weight: 600;">
+                        {{ "%.2f"|format(item.converted_amount) }} {{ item.converted_currency }}
+                    </div>
+                    {% if item.needs_conversion %}
+                    <div style="font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                        ({{ "%.2f"|format(item.original_amount) }} {{ item.original_currency }})
+                    </div>
+                    {% endif %}
                 </td>
                 <td>
                     <div class="table-actions">
