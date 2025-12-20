@@ -14,6 +14,7 @@ from .connection import (
     table_exists,
     get_db_info,
 )
+from .singleton_db import DatabaseSingleton
 
 __all__ = [
     'get_db',
@@ -26,4 +27,5 @@ __all__ = [
     'get_table_names',
     'table_exists',
     'get_db_info',
+    'DatabaseSingleton',
 ]

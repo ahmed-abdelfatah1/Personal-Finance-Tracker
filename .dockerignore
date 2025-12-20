@@ -1,0 +1,88 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Testing
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+.hypothesis/
+
+# CI/CD
+.github/
+
+# Database files (will be created in container)
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Deployment
+deployment/
+*.log
+logs/
+
+# Docker
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~
+
+# Linting
+.flake8
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints
+
+# Distribution / packaging
+*.egg
+*.whl
+
