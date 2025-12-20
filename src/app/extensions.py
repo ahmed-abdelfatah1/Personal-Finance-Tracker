@@ -7,8 +7,13 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 from flask_login import LoginManager
 
+from .db.singleton_db import DatabaseSingleton
+
 # Initialize extensions
+# Database connection is managed as a singleton to ensure only one SQLite connection
 db = SQLAlchemy()
+DatabaseSingleton.set_db(db)  # Register the db instance with the singleton
+
 bcrypt = Bcrypt()
 login_manager = LoginManager()
 

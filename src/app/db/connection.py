@@ -7,13 +7,33 @@ from flask import Flask
 from sqlalchemy import text
 
 from ..extensions import db
+from .singleton_db import DatabaseSingleton
 
 
 # Singleton DB Access
 
 def get_db():
-    """Get the singleton database instance."""
-    return db
+    """
+    Get the singleton database instance.
+    
+    This function ensures that only one database connection exists
+    by using the DatabaseSingleton pattern. All calls to this function
+    return the same database instance, preventing unnecessary connection creation.
+    
+    The singleton pattern ensures:
+    - Only one SQLite connection pool is created
+    - All database operations use the same connection instance
+    - Prevents creating thousands of unnecessary connections
+    
+    Returns:
+        The singleton SQLAlchemy database instance
+    """
+    try:
+        return DatabaseSingleton.get_db()
+    except RuntimeError:
+        # Fallback to direct db import if singleton not initialized
+        # (should not happen in normal operation)
+        return db
 
 
 def get_engine():
