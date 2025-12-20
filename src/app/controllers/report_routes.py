@@ -3,14 +3,11 @@
 import csv
 from io import StringIO
 from datetime import datetime, timedelta
-from decimal import Decimal
 
 from flask import Blueprint, render_template, request, make_response, flash, redirect, url_for
 from flask_login import login_required, current_user
-from sqlalchemy import func, extract
 
-from ..extensions import db
-from ..models import Transaction, Category, Account
+from ..repositories import TransactionRepository, AccountRepository, CategoryRepository
 
 report_bp = Blueprint('report', __name__)
 
@@ -58,11 +55,9 @@ def export_report():
         return redirect(url_for('report.reports'))
     
     # Get transactions
-    transactions = Transaction.query.filter(
-        Transaction.user_id == current_user.id,
-        Transaction.date >= start,
-        Transaction.date <= end
-    ).order_by(Transaction.date.desc()).all()
+    transactions = TransactionRepository.get_by_date_range(
+        current_user.id, start, end
+    )
     
     # Create CSV
     output = StringIO()
@@ -95,11 +90,7 @@ def generate_report(user_id: int, start_date, end_date) -> dict:
     """Generate financial report data for given date range."""
     
     # Get all transactions in range
-    transactions = Transaction.query.filter(
-        Transaction.user_id == user_id,
-        Transaction.date >= start_date,
-        Transaction.date <= end_date
-    ).all()
+    transactions = TransactionRepository.get_by_date_range(user_id, start_date, end_date)
     
     # Calculate totals
     total_income = sum(
@@ -110,19 +101,24 @@ def generate_report(user_id: int, start_date, end_date) -> dict:
     )
     net_savings = total_income - total_expense
     
-    # Category breakdown
-    category_breakdown = db.session.query(
-        Category.name,
-        Category.category_type,
-        func.sum(Transaction.amount).label('total')
-    ).join(Transaction).filter(
-        Transaction.user_id == user_id,
-        Transaction.date >= start_date,
-        Transaction.date <= end_date
-    ).group_by(Category.id, Category.name, Category.category_type).all()
+    # Category breakdown - simplified version
+    # Note: For full category breakdown with SQL aggregation, 
+    # we'd need to add a method to TransactionRepository
+    category_totals = {}
+    for txn in transactions:
+        key = (txn.category.name if txn.category else 'Unknown', 
+               txn.category.category_type if txn.category else 'Unknown')
+        if key not in category_totals:
+            category_totals[key] = 0
+        category_totals[key] += float(txn.amount)
+    
+    category_breakdown = [
+        (name, cat_type, total) 
+        for (name, cat_type), total in category_totals.items()
+    ]
     
     # Account balances
-    accounts = Account.query.filter_by(user_id=user_id).all()
+    accounts = AccountRepository.get_all_by_user(user_id)
     
     return {
         'total_income': total_income,

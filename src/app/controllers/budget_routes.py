@@ -1,12 +1,12 @@
 """Budget routes - CRUD operations for budgets."""
 
 from datetime import datetime
+from decimal import Decimal
 
 from flask import Blueprint, render_template, request, redirect, flash, url_for
 from flask_login import login_required, current_user
 
-from ..extensions import db
-from ..models import Budget, Category
+from ..repositories import BudgetRepository, CategoryRepository
 
 budget_bp = Blueprint('budget', __name__)
 
@@ -16,14 +16,8 @@ budget_bp = Blueprint('budget', __name__)
 def budgets():
     now = datetime.now()
 
-    user_budgets = Budget.query.filter_by(
-        user_id=current_user.id
-    ).order_by(Budget.year.desc(), Budget.month.desc()).all()
-
-    expense_categories = Category.query.filter_by(
-        user_id=current_user.id,
-        category_type='Expense'
-    ).all()
+    user_budgets = BudgetRepository.get_all_by_user(current_user.id)
+    expense_categories = CategoryRepository.get_expense_categories(current_user.id)
 
     return render_template(
         'budgets.html',
@@ -39,10 +33,7 @@ def budgets():
 def set_budget():
     if request.method == 'GET':
         now = datetime.now()
-        categories = Category.query.filter_by(
-            user_id=current_user.id,
-            category_type='Expense'
-        ).all()
+        categories = CategoryRepository.get_expense_categories(current_user.id)
         return render_template(
             'set_budget.html',
             categories=categories,
@@ -55,8 +46,13 @@ def set_budget():
         if not data:
             return redirect(url_for('budget.set_budget'))
 
-        budget, action = _create_or_update_budget(data)
-        db.session.commit()
+        budget, action = BudgetRepository.create_or_update(
+            user_id=current_user.id,
+            category_id=data['category_id'],
+            month=data['month'],
+            year=data['year'],
+            limit_amount=Decimal(str(data['limit_amount']))
+        )
 
         _flash_budget_result(budget, action, data['category_id'])
         return redirect(url_for('budget.budgets'))
@@ -95,34 +91,11 @@ def _extract_budget_data() -> dict | None:
     }
 
 
-def _create_or_update_budget(data: dict) -> tuple[Budget, str]:
-    existing = Budget.query.filter_by(
-        user_id=current_user.id,
-        category_id=data['category_id'],
-        month=data['month'],
-        year=data['year']
-    ).first()
-
-    if existing:
-        existing.limit_amount = data['limit_amount']
-        existing.update_current_spent()
-        return existing, 'updated'
-
-    new_budget = Budget(
-        user_id=current_user.id,
-        category_id=data['category_id'],
-        month=data['month'],
-        year=data['year'],
-        limit_amount=data['limit_amount']
-    )
-    new_budget.update_current_spent()
-    db.session.add(new_budget)
-    return new_budget, 'created'
 
 
-def _flash_budget_result(budget: Budget, action: str, category_id: int) -> None:
+def _flash_budget_result(budget, action: str, category_id: int) -> None:
     if budget.check_alert_threshold():
-        category = Category.query.get(category_id)
+        category = CategoryRepository.get_by_id(category_id)
         percentage = budget.get_percentage_used()
         flash(
             f'Budget {action} successfully! ⚠ Warning: {category.name} '
@@ -136,10 +109,7 @@ def _flash_budget_result(budget: Budget, action: str, category_id: int) -> None:
 @budget_bp.route('/delete_budget/<int:budget_id>', methods=['POST'])
 @login_required
 def delete_budget(budget_id: int):
-    budget = Budget.query.filter_by(
-        id=budget_id,
-        user_id=current_user.id
-    ).first()
+    budget = BudgetRepository.get_by_id_and_user(budget_id, current_user.id)
 
     if not budget:
         flash('Budget not found', 'error')
@@ -147,8 +117,7 @@ def delete_budget(budget_id: int):
 
     try:
         category_name = budget.category.name if budget.category else 'Unknown'
-        db.session.delete(budget)
-        db.session.commit()
+        BudgetRepository.delete(budget)
         flash(f'Budget for {category_name} deleted successfully!', 'success')
     except Exception as e:
         flash(f'Error deleting budget: {str(e)}', 'error')

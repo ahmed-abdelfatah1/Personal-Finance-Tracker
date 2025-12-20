@@ -2,13 +2,11 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import List
 
 from flask import Blueprint, render_template
 from flask_login import login_required, current_user
 
-from ..extensions import db
-from ..models import Transaction, Budget
+from ..repositories import TransactionRepository, BudgetRepository
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -32,11 +30,9 @@ def dashboard():
     )
 
 
-def _get_recent_transactions() -> List[Transaction]:
+def _get_recent_transactions():
     """Fetch the 5 most recent transactions for the current user."""
-    return Transaction.query.filter_by(
-        user_id=current_user.id
-    ).order_by(Transaction.date.desc()).limit(5).all()
+    return TransactionRepository.get_recent(current_user.id, limit=5)
 
 
 def _calculate_monthly_summary() -> dict:
@@ -61,31 +57,20 @@ def _get_monthly_total(
     year: int
 ) -> Decimal:
     """Get total amount for a transaction type in a specific month."""
-    result = db.session.query(
-        db.func.coalesce(db.func.sum(Transaction.amount), 0)
-    ).filter(
-        Transaction.user_id == current_user.id,
-        Transaction.transaction_type == transaction_type,
-        db.extract('month', Transaction.date) == month,
-        db.extract('year', Transaction.date) == year
-    ).scalar()
-
-    return Decimal(str(result))
+    return TransactionRepository.get_monthly_total(
+        current_user.id, transaction_type, month, year
+    )
 
 
-def _get_budget_alerts() -> List[dict]:
+def _get_budget_alerts():
     """Get list of budgets that are over threshold or over budget."""
     now = datetime.now()
 
-    budgets = Budget.query.filter_by(
-        user_id=current_user.id,
-        month=now.month,
-        year=now.year
-    ).all()
+    budgets = BudgetRepository.get_by_month(current_user.id, now.month, now.year)
 
     alerts = []
     for budget in budgets:
-        budget.update_current_spent()
+        BudgetRepository.update_spent(budget)
 
         if budget.is_over_budget:
             alerts.append({

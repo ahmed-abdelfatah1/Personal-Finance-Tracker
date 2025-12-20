@@ -3,8 +3,7 @@
 from flask import Blueprint, render_template, request, redirect, flash, url_for
 from flask_login import login_user, logout_user, login_required
 
-from ..extensions import db
-from ..models import User
+from ..repositories import UserRepository
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -26,7 +25,7 @@ def login():
         flash('Please fill in all fields', 'error')
         return redirect(url_for('auth.login'))
 
-    user = User.query.filter_by(email=email).first()
+    user = UserRepository.get_by_email(email)
 
     if user and user.check_password(password):
         login_user(user)
@@ -50,15 +49,11 @@ def register():
         flash('Email and password are required', 'error')
         return redirect(url_for('auth.register'))
 
-    if User.query.filter_by(email=email).first():
+    if UserRepository.email_exists(email):
         flash('Email already registered', 'error')
         return redirect(url_for('auth.register'))
 
-    new_user = User(email=email, display_name=display_name)
-    new_user.set_password(password)
-
-    db.session.add(new_user)
-    db.session.commit()
+    UserRepository.create(email=email, password=password, display_name=display_name)
 
     flash('Registration successful! Please login.', 'success')
     return redirect(url_for('auth.login'))

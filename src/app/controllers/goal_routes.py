@@ -6,8 +6,7 @@ from decimal import Decimal
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 
-from ..extensions import db
-from ..models import Goal
+from ..repositories import GoalRepository
 
 goal_bp = Blueprint('goal', __name__)
 
@@ -16,7 +15,7 @@ goal_bp = Blueprint('goal', __name__)
 @login_required
 def goals():
     """Display all goals for the current user."""
-    user_goals = Goal.query.filter_by(user_id=current_user.id).order_by(Goal.created_at.desc()).all()
+    user_goals = GoalRepository.get_all_by_user(current_user.id)
     return render_template('goals.html', goals=user_goals)
 
 
@@ -43,7 +42,7 @@ def add_goal():
                 target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
 
             # Create new goal
-            new_goal = Goal(
+            GoalRepository.create(
                 user_id=current_user.id,
                 name=name,
                 target_amount=target_amount,
@@ -52,9 +51,6 @@ def add_goal():
                 description=description
             )
 
-            db.session.add(new_goal)
-            db.session.commit()
-
             flash(f'Goal "{name}" created successfully!', 'success')
             return redirect(url_for('goal.goals'))
 
@@ -62,7 +58,7 @@ def add_goal():
             flash(f'Invalid input: {str(e)}', 'error')
             return redirect(url_for('goal.add_goal'))
         except Exception as e:
-            db.session.rollback()
+            GoalRepository.rollback()
             flash(f'Error creating goal: {str(e)}', 'error')
             return redirect(url_for('goal.add_goal'))
 
@@ -73,23 +69,23 @@ def add_goal():
 @login_required
 def edit_goal(goal_id):
     """Edit an existing goal."""
-    goal = Goal.query.filter_by(id=goal_id, user_id=current_user.id).first_or_404()
+    goal = GoalRepository.get_by_id_and_user_or_404(goal_id, current_user.id)
 
     if request.method == 'POST':
         try:
-            goal.name = request.form.get('name')
-            goal.target_amount = Decimal(request.form.get('target_amount', 0))
-            goal.current_amount = Decimal(request.form.get('current_amount', 0))
-            
             target_date_str = request.form.get('target_date')
+            target_date = None
             if target_date_str:
-                goal.target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
-            else:
-                goal.target_date = None
-            
-            goal.description = request.form.get('description')
+                target_date = datetime.strptime(target_date_str, '%Y-%m-%d').date()
 
-            db.session.commit()
+            GoalRepository.update(
+                goal,
+                name=request.form.get('name'),
+                target_amount=Decimal(request.form.get('target_amount', 0)),
+                current_amount=Decimal(request.form.get('current_amount', 0)),
+                target_date=target_date,
+                description=request.form.get('description')
+            )
             flash(f'Goal "{goal.name}" updated successfully!', 'success')
             return redirect(url_for('goal.goals'))
 
@@ -97,7 +93,7 @@ def edit_goal(goal_id):
             flash(f'Invalid input: {str(e)}', 'error')
             return redirect(url_for('goal.edit_goal', goal_id=goal_id))
         except Exception as e:
-            db.session.rollback()
+            GoalRepository.rollback()
             flash(f'Error updating goal: {str(e)}', 'error')
             return redirect(url_for('goal.edit_goal', goal_id=goal_id))
 
@@ -108,15 +104,14 @@ def edit_goal(goal_id):
 @login_required
 def delete_goal(goal_id):
     """Delete a goal."""
-    goal = Goal.query.filter_by(id=goal_id, user_id=current_user.id).first_or_404()
+    goal = GoalRepository.get_by_id_and_user_or_404(goal_id, current_user.id)
     
     try:
         goal_name = goal.name
-        db.session.delete(goal)
-        db.session.commit()
+        GoalRepository.delete(goal)
         flash(f'Goal "{goal_name}" deleted successfully!', 'success')
     except Exception as e:
-        db.session.rollback()
+        GoalRepository.rollback()
         flash(f'Error deleting goal: {str(e)}', 'error')
     
     return redirect(url_for('goal.goals'))
@@ -126,14 +121,13 @@ def delete_goal(goal_id):
 @login_required
 def update_progress(goal_id):
     """Update the current amount for a goal."""
-    goal = Goal.query.filter_by(id=goal_id, user_id=current_user.id).first_or_404()
+    goal = GoalRepository.get_by_id_and_user_or_404(goal_id, current_user.id)
     
     try:
         amount_to_add = Decimal(request.form.get('amount', 0))
         
         if amount_to_add > 0:
-            goal.current_amount += amount_to_add
-            db.session.commit()
+            GoalRepository.add_progress(goal, amount_to_add)
             flash(f'Added {amount_to_add} EGP to goal "{goal.name}"!', 'success')
         else:
             flash('Please enter a valid amount', 'error')
@@ -141,7 +135,7 @@ def update_progress(goal_id):
     except ValueError:
         flash('Invalid amount entered', 'error')
     except Exception as e:
-        db.session.rollback()
+        GoalRepository.rollback()
         flash(f'Error updating progress: {str(e)}', 'error')
     
     return redirect(url_for('goal.goals'))

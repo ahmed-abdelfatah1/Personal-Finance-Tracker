@@ -1,10 +1,11 @@
 """Account routes - CRUD operations for financial accounts."""
 
+from decimal import Decimal
+
 from flask import Blueprint, render_template, request, redirect, flash, url_for
 from flask_login import login_required, current_user
 
-from ..extensions import db
-from ..models import Account, Transaction
+from ..repositories import AccountRepository, TransactionRepository
 
 account_bp = Blueprint('account', __name__)
 
@@ -12,8 +13,8 @@ account_bp = Blueprint('account', __name__)
 @account_bp.route('/accounts')
 @login_required
 def accounts():
-    user_accounts = Account.query.filter_by(user_id=current_user.id).all()
-    total_balance = sum(acc.current_balance for acc in user_accounts)
+    user_accounts = AccountRepository.get_all_by_user(current_user.id)
+    total_balance = AccountRepository.get_total_balance(current_user.id)
 
     return render_template(
         'accounts.html',
@@ -31,27 +32,23 @@ def add_account():
     try:
         name = request.form.get('name')
         account_type = request.form.get('account_type')
-        initial_balance = float(request.form.get('initial_balance', 0))
+        initial_balance = Decimal(str(request.form.get('initial_balance', 0)))
 
         if not name:
             flash('Account name is required', 'error')
             return redirect(url_for('account.add_account'))
 
-        new_account = Account(
+        AccountRepository.create(
             user_id=current_user.id,
             name=name,
             account_type=account_type,
-            initial_balance=initial_balance,
-            current_balance=initial_balance
+            initial_balance=initial_balance
         )
-
-        db.session.add(new_account)
-        db.session.commit()
 
         flash(f'Account "{name}" created successfully!', 'success')
         return redirect(url_for('account.accounts'))
 
-    except ValueError:
+    except (ValueError, TypeError):
         flash('Invalid balance amount', 'error')
         return redirect(url_for('account.add_account'))
     except Exception as e:
@@ -62,10 +59,7 @@ def add_account():
 @account_bp.route('/edit_account/<int:account_id>', methods=['GET', 'POST'])
 @login_required
 def edit_account(account_id: int):
-    account = Account.query.filter_by(
-        id=account_id,
-        user_id=current_user.id
-    ).first()
+    account = AccountRepository.get_by_id_and_user(account_id, current_user.id)
 
     if not account:
         flash('Account not found', 'error')
@@ -75,21 +69,22 @@ def edit_account(account_id: int):
         return render_template('edit_account.html', account=account)
 
     try:
-        account.name = request.form.get('name')
-        account.account_type = request.form.get('account_type')
+        update_data = {
+            'name': request.form.get('name'),
+            'account_type': request.form.get('account_type')
+        }
 
-        transaction_count = Transaction.query.filter_by(account_id=account.id).count()
-        if transaction_count == 0:
-            new_initial = float(request.form.get('initial_balance', 0))
-            difference = new_initial - float(account.initial_balance)
-            account.initial_balance = new_initial
-            account.current_balance = float(account.current_balance) + difference
+        if not AccountRepository.has_transactions(account.id):
+            new_initial = Decimal(str(request.form.get('initial_balance', 0)))
+            difference = new_initial - account.initial_balance
+            update_data['initial_balance'] = new_initial
+            update_data['current_balance'] = account.current_balance + difference
 
-        db.session.commit()
+        AccountRepository.update(account, **update_data)
         flash('Account updated successfully!', 'success')
         return redirect(url_for('account.accounts'))
 
-    except ValueError:
+    except (ValueError, TypeError):
         flash('Invalid balance amount', 'error')
         return redirect(url_for('account.edit_account', account_id=account_id))
     except Exception as e:
@@ -100,17 +95,14 @@ def edit_account(account_id: int):
 @account_bp.route('/delete_account/<int:account_id>', methods=['POST'])
 @login_required
 def delete_account(account_id: int):
-    account = Account.query.filter_by(
-        id=account_id,
-        user_id=current_user.id
-    ).first()
+    account = AccountRepository.get_by_id_and_user(account_id, current_user.id)
 
     if not account:
         flash('Account not found', 'error')
         return redirect(url_for('account.accounts'))
 
-    transaction_count = Transaction.query.filter_by(account_id=account.id).count()
-    if transaction_count > 0:
+    if AccountRepository.has_transactions(account.id):
+        transaction_count = AccountRepository.get_transaction_count(account.id)
         flash(
             f'Cannot delete account "{account.name}" because it has '
             f'{transaction_count} transactions. Delete transactions first.',
@@ -119,9 +111,9 @@ def delete_account(account_id: int):
         return redirect(url_for('account.accounts'))
 
     try:
-        db.session.delete(account)
-        db.session.commit()
-        flash(f'Account "{account.name}" deleted successfully!', 'success')
+        account_name = account.name
+        AccountRepository.delete(account)
+        flash(f'Account "{account_name}" deleted successfully!', 'success')
     except Exception as e:
         flash(f'Error deleting account: {str(e)}', 'error')
 
