@@ -26,12 +26,18 @@ report_bp = Blueprint('report', __name__)
 def reports():
     """Display financial reports page."""
     # Get selected currency from query parameter or use user's default
-    selected_currency = request.args.get('currency', current_user.default_currency or 'EGP')
+    selected_currency_code = request.args.get('currency', current_user.default_currency or 'EGP')
     
-    # Validate currency exists
-    currency = CurrencyRepository.get_by_code(selected_currency)
-    if not currency:
-        selected_currency = current_user.default_currency or 'EGP'
+    # Validate currency exists and get currency object
+    selected_currency_obj = CurrencyRepository.get_by_code(selected_currency_code)
+    if not selected_currency_obj:
+        selected_currency_code = current_user.default_currency or 'EGP'
+        selected_currency_obj = CurrencyRepository.get_by_code(selected_currency_code)
+    
+    # Fallback to EGP if still not found
+    if not selected_currency_obj:
+        selected_currency_code = 'EGP'
+        selected_currency_obj = CurrencyRepository.get_by_code('EGP')
     
     # Get date range from query params or default to current month
     end_date = request.args.get('end_date', datetime.now().strftime('%Y-%m-%d'))
