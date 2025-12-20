@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}{% if template %}Edit{% else %}Add{% endif %} Transaction Template - Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{% if template %}Edit{% else %}Add{% endif %} Transaction Template</h1>
+    <a href="{{ url_for('template.templates') }}" class="btn btn-outline">← Back</a>
+</div>
+
+<div class="card" style="max-width: 600px;">
+    <div class="card-header">
+        <h2>{% if template %}Edit{% else %}Create{% endif %} Template</h2>
+    </div>
+    <div class="card-body">
+        <form method="POST">
+            <div class="form-group">
+                <label class="form-label">Template Name *</label>
+                <input type="text" name="name" class="form-control" value="{{ template.name if template else '' }}" required placeholder="e.g., Weekly Groceries">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Transaction Type *</label>
+                <select name="transaction_type" id="transaction-type" class="form-control" required>
+                    <option value="">Select Type</option>
+                    <option value="Income" {% if template and template.transaction_type == 'Income' %}selected{% endif %}>Income</option>
+                    <option value="Expense" {% if template and template.transaction_type == 'Expense' %}selected{% endif %}>Expense</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Default Amount</label>
+                <input type="number" name="default_amount" step="0.01" min="0" class="form-control" 
+                       value="{{ "%.2f"|format(template.default_amount) if template and template.default_amount else '' }}" placeholder="Optional default amount">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Default Account</label>
+                <select name="account_id" class="form-control">
+                    <option value="">None (select manually)</option>
+                    {% for account in accounts %}
+                    <option value="{{ account.id }}" {% if template and template.account_id == account.id %}selected{% endif %}>
+                        {{ account.name }} ({{ account.currency }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Default Category</label>
+                <select name="category_id" class="form-control" id="category-select">
+                    <option value="">None (select manually)</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}" 
+                            data-type="{{ category.category_type }}"
+                            {% if template and template.category_id == category.id %}selected{% endif %}>
+                        {{ category.name }} ({{ category.category_type }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Description</label>
+                <textarea name="description" class="form-control" rows="3" placeholder="Optional description">{{ template.description if template and template.description else '' }}</textarea>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">{% if template %}Update{% else %}Create{% endif %} Template</button>
+                <a href="{{ url_for('template.templates') }}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Filter categories based on transaction type
+document.getElementById('transaction-type').addEventListener('change', function() {
+    const transactionType = this.value;
+    const categorySelect = document.getElementById('category-select');
+    const options = categorySelect.options;
+    
+    // Show/hide categories based on type
+    for (let i = 0; i < options.length; i++) {
+        const option = options[i];
+        if (option.value === '') {
+            option.style.display = 'block'; // Always show "None" option
+            continue;
+        }
+        
+        const categoryType = option.dataset.type;
+        if (transactionType === '' || categoryType === transactionType) {
+            option.style.display = 'block';
+        } else {
+            option.style.display = 'none';
+            if (option.selected) {
+                option.selected = false;
+                categorySelect.options[0].selected = true; // Select "None"
+            }
+        }
+    }
+});
+
+// Trigger on page load if template exists
+{% if template %}
+document.getElementById('transaction-type').dispatchEvent(new Event('change'));
+{% endif %}
+</script>
+{% endblock %}
+

@@ -48,12 +48,6 @@ htmlcov/
 # CI/CD
 .github/
 
-# Database files (will be created in container)
-*.db
-*.db-journal
-*.sqlite
-*.sqlite3
-
 # Deployment
 deployment/
 *.log

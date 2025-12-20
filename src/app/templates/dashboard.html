@@ -4,30 +4,88 @@
 
 {% block content %}
 <div class="page-header">
-    <h1>Dashboard</h1>
-    <span class="text-muted">Welcome back, {{ user.display_name or user.email }}!</span>
+    <div>
+        <h1>Dashboard</h1>
+        <span class="text-muted">Welcome back, {{ user.display_name or user.email }}!</span>
+    </div>
+    <div class="currency-selector-container">
+        <form method="GET" action="{{ url_for('dashboard.dashboard') }}" style="display: flex; align-items: center; gap: 0.5rem;">
+            <label for="currency-select" style="font-size: 0.875rem; font-weight: 500; color: var(--text-secondary);">View in:</label>
+            <select name="currency" id="currency-select" class="form-control" style="width: auto; padding: 0.5rem 2rem 0.5rem 0.75rem;" onchange="this.form.submit()">
+                {% for currency in currencies %}
+                <option value="{{ currency.code }}" {% if currency.code == selected_currency.code %}selected{% endif %}>
+                    {{ currency.code }} - {{ currency.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
 </div>
 
 <div class="dashboard-stats">
     <div class="stat-card balance">
         <div class="stat-label">Total Balance</div>
-        <div class="stat-value">{{ "%.2f"|format(total_balance) }} {{ user.default_currency }}</div>
+        <div class="stat-value">{{ "%.2f"|format(total_balance) }} {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}</div>
+        {% if account_breakdown|selectattr('needs_conversion')|list|length > 0 %}
+        <div class="stat-note" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">
+            💱 Converted from multiple currencies
+        </div>
+        {% endif %}
     </div>
     <div class="stat-card income">
         <div class="stat-label">This Month Income</div>
-        <div class="stat-value">+{{ "%.2f"|format(monthly_summary.income) }}</div>
+        <div class="stat-value">+{{ "%.2f"|format(monthly_summary.income) }} {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}</div>
+        <div class="stat-note" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">
+            💱 All amounts converted to {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}
+        </div>
     </div>
     <div class="stat-card expense">
         <div class="stat-label">This Month Expenses</div>
-        <div class="stat-value">-{{ "%.2f"|format(monthly_summary.expenses) }}</div>
+        <div class="stat-value">-{{ "%.2f"|format(monthly_summary.expenses) }} {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}</div>
+        <div class="stat-note" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">
+            💱 All amounts converted to {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}
+        </div>
     </div>
     <div class="stat-card">
         <div class="stat-label">Net This Month</div>
         <div class="stat-value {% if monthly_summary.net >= 0 %}text-success{% else %}text-danger{% endif %}">
-            {{ "%.2f"|format(monthly_summary.net) }}
+            {{ "%.2f"|format(monthly_summary.net) }} {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}
         </div>
     </div>
 </div>
+
+{% if account_breakdown|selectattr('needs_conversion')|list|length > 0 %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h3>💱 Currency Conversion Summary</h3>
+    </div>
+    <div class="card-body">
+        <div class="currency-breakdown">
+            {% for account in account_breakdown %}
+            <div class="currency-item">
+                <div class="flex flex-between flex-center">
+                    <div>
+                        <strong>{{ account.name }}</strong>
+                        <div class="text-muted" style="font-size: 0.75rem;">
+                            {{ "%.2f"|format(account.original_balance) }} {{ account.currency_symbol }}
+                            {% if account.needs_conversion %}
+                            <span style="margin: 0 0.5rem;">→</span>
+                            <span style="color: var(--primary);">{{ "%.2f"|format(account.converted_balance) }} {{ selected_currency.symbol if selected_currency.symbol else selected_currency.code }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if account.needs_conversion %}
+                    <span class="badge badge-info" style="font-size: 0.7rem;">Converted</span>
+                    {% else %}
+                    <span class="badge badge-outline" style="font-size: 0.7rem;">Base Currency</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
 
 {% if budget_alerts %}
 <div class="card mb-3">
@@ -65,16 +123,26 @@
         </div>
         <div class="card-body">
             {% if recent_transactions %}
-                {% for transaction in recent_transactions %}
-                <div class="flex flex-between flex-center mb-2" style="padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
-                    <div>
+                {% for item in recent_transactions %}
+                {% set transaction = item.transaction %}
+                <div class="flex flex-between flex-center mb-2 transaction-item" style="padding: 0.75rem 0; border-bottom: 1px solid var(--border-color);">
+                    <div style="flex: 1;">
                         <div style="font-weight: 500;">{{ transaction.description or 'No description' }}</div>
                         <div class="text-muted" style="font-size: 0.75rem;">
                             {{ transaction.date.strftime('%b %d, %Y') }} · {{ transaction.category.name }}
                         </div>
+                        {% if item.needs_conversion %}
+                        <div class="text-muted" style="font-size: 0.7rem; margin-top: 0.25rem;">
+                            💱 {{ "%.2f"|format(item.original_amount) }} {{ item.original_currency_symbol }} → {{ "%.2f"|format(item.converted_amount) }} {{ item.converted_currency_symbol }}
+                        </div>
+                        {% else %}
+                        <div class="text-muted" style="font-size: 0.7rem; margin-top: 0.25rem;">
+                            {{ item.original_currency_symbol }}
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="amount {% if transaction.transaction_type == 'Income' %}amount-income{% else %}amount-expense{% endif %}">
-                        {{ "%.2f"|format(transaction.amount) }}
+                        {{ "%.2f"|format(item.converted_amount) }} {{ item.converted_currency_symbol }}
                     </div>
                 </div>
                 {% endfor %}
@@ -89,7 +157,7 @@
         </div>
         {% if recent_transactions %}
         <div class="card-footer text-center">
-            <a href="{{ url_for('transaction.transactions') }}">View All Transactions →</a>
+            <a href="{{ url_for('transaction.transactions') }}" class="btn btn-outline btn-sm">View All Transactions →</a>
         </div>
         {% endif %}
     </div>

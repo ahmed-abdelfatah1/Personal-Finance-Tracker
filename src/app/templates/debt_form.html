@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}{% if debt %}Edit{% else %}Add{% endif %} Debt/Loan - Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{% if debt %}Edit{% else %}Add{% endif %} Debt/Loan</h1>
+    <a href="{{ url_for('debt.debts') }}" class="btn btn-outline">← Back</a>
+</div>
+
+<form method="POST" class="form-card">
+    <div class="form-group">
+        <label class="form-label">Name *</label>
+        <input type="text" name="name" class="form-control" value="{{ debt.name if debt else '' }}" required>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Type *</label>
+        <select name="debt_type" class="form-control" required>
+            <option value="Debt" {% if debt and debt.debt_type == 'Debt' %}selected{% endif %}>Debt (Money Owed)</option>
+            <option value="Loan" {% if debt and debt.debt_type == 'Loan' %}selected{% endif %}>Loan (Money Lent)</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Principal Amount (EGP) *</label>
+        <input type="number" name="principal_amount" step="0.01" min="0.01" class="form-control" 
+               value="{{ "%.2f"|format(debt.principal_amount) if debt else '' }}" required>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Remaining Amount (EGP)</label>
+        <input type="number" name="remaining_amount" step="0.01" min="0" class="form-control" 
+               value="{{ "%.2f"|format(debt.remaining_amount) if debt else '' }}">
+        <small class="form-text">Leave empty to set equal to principal amount</small>
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Interest Rate (%)</label>
+        <input type="number" name="interest_rate" step="0.01" min="0" max="100" class="form-control" 
+               value="{{ "%.2f"|format(debt.interest_rate) if debt and debt.interest_rate else '' }}">
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Minimum Payment (EGP)</label>
+        <input type="number" name="minimum_payment" step="0.01" min="0" class="form-control" 
+               value="{{ "%.2f"|format(debt.minimum_payment) if debt and debt.minimum_payment else '' }}">
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Due Date</label>
+        <input type="date" name="due_date" class="form-control" 
+               value="{{ debt.due_date.strftime('%Y-%m-%d') if debt and debt.due_date else '' }}">
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Lender Name</label>
+        <input type="text" name="lender_name" class="form-control" 
+               value="{{ debt.lender_name if debt and debt.lender_name else '' }}">
+    </div>
+
+    <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea name="description" class="form-control" rows="3">{{ debt.description if debt and debt.description else '' }}</textarea>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{% if debt %}Update{% else %}Create{% endif %} Debt/Loan</button>
+        <a href="{{ url_for('debt.debts') }}" class="btn btn-outline">Cancel</a>
+    </div>
+</form>
+{% endblock %}
+

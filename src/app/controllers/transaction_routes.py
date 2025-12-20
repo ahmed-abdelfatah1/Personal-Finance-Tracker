@@ -1,8 +1,10 @@
 """Transaction routes - CRUD operations for transactions."""
 
+import csv
 import json
 from datetime import date
 from decimal import Decimal
+from io import StringIO
 from typing import Optional
 
 from flask import Blueprint, render_template, request, redirect, flash, url_for
@@ -26,6 +28,7 @@ def transactions():
     transaction_type = request.args.get('type')
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
+    search_query = request.args.get('search', '').strip()
 
     start_date = None
     end_date = None
@@ -46,17 +49,37 @@ def transactions():
         category_id=category_id,
         transaction_type=transaction_type,
         start_date=start_date,
-        end_date=end_date
+        end_date=end_date,
+        search_query=search_query if search_query else None
     )
 
     accounts = AccountRepository.get_all_by_user(current_user.id)
     categories = CategoryRepository.get_all_by_user(current_user.id)
+    
+    # Add currency conversion info to transactions
+    from ..repositories import CurrencyRepository
+    from ..utils.currency_utils import convert_transaction_to_base
+    user_currency = current_user.default_currency or 'EGP'
+    
+    transactions_with_conversion = []
+    for txn in all_transactions:
+        converted_amount = convert_transaction_to_base(txn.amount, txn.account_id)
+        transactions_with_conversion.append({
+            'transaction': txn,
+            'original_amount': txn.amount,
+            'original_currency': txn.account.currency,
+            'converted_amount': converted_amount,
+            'converted_currency': user_currency,
+            'needs_conversion': txn.account.currency != user_currency
+        })
 
     return render_template(
         'transactions.html',
-        transactions=all_transactions,
+        transactions=transactions_with_conversion,
         accounts=accounts,
-        categories=categories
+        categories=categories,
+        search_query=search_query,
+        user_currency=user_currency
     )
 
 
@@ -351,4 +374,132 @@ def delete_transaction(transaction_id: int):
         flash(f'Error deleting transaction: {str(e)}', 'error')
 
     return redirect(url_for('transaction.transactions'))
+
+
+@transaction_bp.route('/transactions/import', methods=['GET', 'POST'])
+@login_required
+def import_transactions():
+    """Import transactions from CSV file."""
+    if request.method == 'GET':
+        accounts = AccountRepository.get_all_by_user(current_user.id)
+        categories = CategoryRepository.get_all_by_user(current_user.id)
+        return render_template(
+            'import_transactions.html',
+            accounts=accounts,
+            categories=categories
+        )
+
+    if 'csv_file' not in request.files:
+        flash('No file provided', 'error')
+        return redirect(url_for('transaction.import_transactions'))
+
+    file = request.files['csv_file']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('transaction.import_transactions'))
+
+    if not file.filename.endswith('.csv'):
+        flash('Please upload a CSV file', 'error')
+        return redirect(url_for('transaction.import_transactions'))
+
+    try:
+        # Read CSV content
+        stream = StringIO(file.stream.read().decode('UTF-8'), newline=None)
+        csv_reader = csv.DictReader(stream)
+
+        # Expected columns: Date, Type, Category, Account, Amount, Description, Notes
+        imported_count = 0
+        errors = []
+
+        # Get mappings for account and category names to IDs
+        accounts = {acc.name: acc.id for acc in AccountRepository.get_all_by_user(current_user.id)}
+        categories = {cat.name: cat.id for cat in CategoryRepository.get_all_by_user(current_user.id)}
+
+        for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 (header is row 1)
+            try:
+                # Parse required fields
+                date_str = row.get('Date', '').strip()
+                transaction_type = row.get('Type', '').strip()
+                category_name = row.get('Category', '').strip()
+                account_name = row.get('Account', '').strip()
+                amount_str = row.get('Amount', '').strip()
+                description = row.get('Description', '').strip()
+                notes = row.get('Notes', '').strip()
+
+                # Validate required fields
+                if not all([date_str, transaction_type, category_name, account_name, amount_str]):
+                    errors.append(f'Row {row_num}: Missing required fields')
+                    continue
+
+                if transaction_type not in ['Income', 'Expense']:
+                    errors.append(f'Row {row_num}: Invalid transaction type (must be Income or Expense)')
+                    continue
+
+                # Get account and category IDs
+                account_id = accounts.get(account_name)
+                category_id = categories.get(category_name)
+
+                if not account_id:
+                    errors.append(f'Row {row_num}: Account "{account_name}" not found')
+                    continue
+
+                if not category_id:
+                    errors.append(f'Row {row_num}: Category "{category_name}" not found')
+                    continue
+
+                # Parse date and amount
+                try:
+                    transaction_date = date.fromisoformat(date_str)
+                    amount = Decimal(str(amount_str))
+                except (ValueError, TypeError) as e:
+                    errors.append(f'Row {row_num}: Invalid date or amount format - {str(e)}')
+                    continue
+
+                # Create transaction
+                TransactionRepository.create(
+                    user_id=current_user.id,
+                    account_id=account_id,
+                    category_id=category_id,
+                    transaction_date=transaction_date,
+                    amount=amount,
+                    transaction_type=transaction_type,
+                    description=description if description else None,
+                    notes=notes if notes else None
+                )
+
+                # Update account balance
+                account = AccountRepository.get_by_id(account_id)
+                AccountRepository.update_balance(
+                    account,
+                    amount,
+                    is_income=(transaction_type == 'Income')
+                )
+
+                # Update affected budgets
+                if transaction_type == 'Expense':
+                    BudgetRepository.update_affected_budgets(
+                        current_user.id,
+                        category_id,
+                        transaction_date.month,
+                        transaction_date.year
+                    )
+
+                imported_count += 1
+
+            except Exception as e:
+                errors.append(f'Row {row_num}: {str(e)}')
+
+        if imported_count > 0:
+            flash(f'Successfully imported {imported_count} transaction(s)!', 'success')
+        if errors:
+            error_msg = f'Errors occurred: {"; ".join(errors[:5])}'  # Show first 5 errors
+            if len(errors) > 5:
+                error_msg += f' (and {len(errors) - 5} more)'
+            flash(error_msg, 'warning')
+
+        return redirect(url_for('transaction.transactions'))
+
+    except Exception as e:
+        flash(f'Error importing CSV: {str(e)}', 'error')
+        return redirect(url_for('transaction.import_transactions'))
 

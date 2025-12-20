@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Import Transactions - Personal Finance Tracker{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Import Transactions from CSV</h1>
+    <a href="{{ url_for('transaction.transactions') }}" class="btn btn-outline">← Back</a>
+</div>
+
+<div class="form-card">
+    <h2>CSV Format Requirements</h2>
+    <p>The CSV file must have the following columns (in order):</p>
+    <ul>
+        <li><strong>Date</strong> - Format: YYYY-MM-DD (e.g., 2025-01-15)</li>
+        <li><strong>Type</strong> - Either "Income" or "Expense"</li>
+        <li><strong>Category</strong> - Category name (must exist in your categories)</li>
+        <li><strong>Account</strong> - Account name (must exist in your accounts)</li>
+        <li><strong>Amount</strong> - Numeric value (e.g., 100.50)</li>
+        <li><strong>Description</strong> - Optional transaction description</li>
+        <li><strong>Notes</strong> - Optional transaction notes</li>
+    </ul>
+
+    <div class="alert alert-info">
+        <strong>Example CSV:</strong><br>
+        <code>
+            Date,Type,Category,Account,Amount,Description,Notes<br>
+            2025-01-15,Expense,Groceries,Main Account,150.00,Weekly shopping,<br>
+            2025-01-16,Income,Salary,Main Account,5000.00,Monthly salary,<br>
+        </code>
+    </div>
+
+    <h3>Available Accounts</h3>
+    <ul>
+        {% for account in accounts %}
+        <li>{{ account.name }}</li>
+        {% else %}
+        <li class="text-muted">No accounts found. Please create an account first.</li>
+        {% endfor %}
+    </ul>
+
+    <h3>Available Categories</h3>
+    <ul>
+        {% for category in categories %}
+        <li>{{ category.name }} ({{ category.category_type }})</li>
+        {% else %}
+        <li class="text-muted">No categories found. Please create categories first.</li>
+        {% endfor %}
+    </ul>
+</div>
+
+<form method="POST" enctype="multipart/form-data" class="form-card">
+    <div class="form-group">
+        <label class="form-label">CSV File *</label>
+        <input type="file" name="csv_file" accept=".csv" class="form-control" required>
+        <small class="form-text">Select a CSV file to import transactions</small>
+    </div>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Import Transactions</button>
+        <a href="{{ url_for('transaction.transactions') }}" class="btn btn-outline">Cancel</a>
+    </div>
+</form>
+{% endblock %}
+

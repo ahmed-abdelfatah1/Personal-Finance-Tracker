@@ -46,6 +46,9 @@ class User(UserMixin, db.Model):
     recurring_transactions: Mapped[List["RecurringTransaction"]] = relationship(
         "RecurringTransaction", back_populates="user", cascade="all, delete-orphan"
     )
+    debts: Mapped[List["Debt"]] = relationship(
+        "Debt", back_populates="user", cascade="all, delete-orphan"
+    )
 
     def set_password(self, password: str) -> None:
         self.password_hash = bcrypt.generate_password_hash(password).decode('utf-8')
@@ -321,6 +324,49 @@ class RecurringTransaction(db.Model):
 
     def __repr__(self) -> str:
         return f'<RecurringTransaction {self.name} - {self.frequency}>'
+
+
+class Debt(db.Model):
+    """Debt/Loan model for tracking debts and loans."""
+    __tablename__ = 'debt'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey('user.id', ondelete='CASCADE'), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    debt_type: Mapped[str] = mapped_column(String(20), nullable=False)  # 'Debt' or 'Loan'
+    principal_amount: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), nullable=False)
+    remaining_amount: Mapped[Decimal] = mapped_column(DECIMAL(10, 2), nullable=False)
+    interest_rate: Mapped[Optional[Decimal]] = mapped_column(DECIMAL(5, 2))
+    minimum_payment: Mapped[Optional[Decimal]] = mapped_column(DECIMAL(10, 2))
+    due_date: Mapped[Optional[datetime]] = mapped_column(Date)
+    lender_name: Mapped[Optional[str]] = mapped_column(String(100))
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user: Mapped["User"] = relationship("User", back_populates="debts")
+
+    @property
+    def paid_amount(self) -> Decimal:
+        """Calculate how much has been paid off."""
+        return self.principal_amount - self.remaining_amount
+
+    @property
+    def paid_percentage(self) -> float:
+        """Calculate percentage paid off."""
+        if self.principal_amount == 0:
+            return 0.0
+        return float((self.paid_amount / self.principal_amount) * 100)
+
+    @property
+    def is_paid_off(self) -> bool:
+        """Check if debt is fully paid."""
+        return self.remaining_amount <= Decimal('0.00')
+
+    def __repr__(self) -> str:
+        return f'<Debt {self.name} - {self.debt_type} ({self.remaining_amount}/{self.principal_amount})>'
 
 
 class Currency(db.Model):

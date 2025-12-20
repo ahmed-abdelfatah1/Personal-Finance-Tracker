@@ -18,6 +18,8 @@
             <li><a href="{{ url_for('account.accounts') }}" class="{% if 'account' in request.endpoint %}active{% endif %}">Accounts</a></li>
             <li><a href="{{ url_for('budget.budgets') }}" class="{% if 'budget' in request.endpoint %}active{% endif %}">Budgets</a></li>
             <li><a href="{{ url_for('category.categories') }}" class="{% if 'category' in request.endpoint %}active{% endif %}">Categories</a></li>
+            <li><a href="{{ url_for('debt.debts') }}" class="{% if 'debt' in request.endpoint %}active{% endif %}">Debts</a></li>
+            <li><a href="{{ url_for('template.templates') }}" class="{% if 'template' in request.endpoint %}active{% endif %}">Templates</a></li>
             <li><a href="{{ url_for('report.reports') }}" class="{% if 'report' in request.endpoint %}active{% endif %}">Reports</a></li>
         </ul>
         <div class="nav-user">
