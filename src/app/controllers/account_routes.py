@@ -11,7 +11,7 @@ account_bp = Blueprint('account', __name__)
 
 @account_bp.route('/accounts')
 @login_required
-def accounts():
+def accounts(): 
     user_accounts = Account.query.filter_by(user_id=current_user.id).all()
     total_balance = sum(acc.current_balance for acc in user_accounts)
 
